@@ -26,6 +26,21 @@ The first bounded subgoal is the central Goal State Index:
 3. Implement a read-only reconcile command that rebuilds STATE from frontmatter.
 4. Only after reconcile is reliable, evaluate file-change based maintenance.
 
+## Python Setup
+
+Use a repo-local virtual environment:
+
+```powershell
+python -m venv .venv
+$env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
+.\.venv\Scripts\python -m pip install --upgrade pip
+.\.venv\Scripts\python -m pip install -r requirements.txt
+.\.venv\Scripts\python -m pytest
+```
+
+Runtime and test dependencies are intentionally small: `PyYAML` for frontmatter parsing and `pytest` for fixture-driven validation.
+`.tmp/` is ignored and can be used as repo-local temp storage when the system temp directory is unavailable from the sandbox. Pytest is configured with `-s -p no:cacheprovider` to avoid tempfile-backed output capture and cache writes in this environment.
+
 ## Non-goals
 
 - Do not edit `C:\Users\jimmy0302\.codex\skills\goal-preflight` yet.

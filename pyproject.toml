@@ -1,0 +1,18 @@
+[project]
+name = "goal-lifecycle"
+version = "0.1.0"
+description = "Read-only Goal Contract lifecycle reconciliation harness"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = ["-s", "-p", "no:cacheprovider"]
