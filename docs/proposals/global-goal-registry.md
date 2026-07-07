@@ -3,7 +3,7 @@ type: global-change-proposal
 schema_version: 1
 id: global-goal-registry
 title: Global Goal Lifecycle Registry Proposal
-status: reviewed
+status: patched
 created: 2026-07-07
 updated: 2026-07-07
 target_root: C:\Users\jimmy0302\.codex\goal-lifecycle
@@ -13,7 +13,7 @@ review:
 approval:
   required_before_patch: true
   token: APPROVE_GLOBAL_GOAL_REGISTRY_PATCH
-  received: false
+  received: true
 tags:
   - goal-lifecycle
   - global-registry
@@ -209,3 +209,42 @@ Approval is scoped only to:
 - creating timestamped backups for changed files.
 
 It does not approve global hooks, skill edits, RTK edits, memory-store edits, routing changes, provider/model config changes, watchers, daemons, scheduled tasks, or source goal mutation.
+
+## Patch Result
+
+Applied on 2026-07-07 after explicit approval token.
+
+Created global directory:
+
+- `C:\Users\jimmy0302\.codex\goal-lifecycle`
+
+Created global file:
+
+- `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`
+
+Backup:
+
+- None. The target file did not exist before this patch.
+
+Baseline SHA-256:
+
+```text
+none
+```
+
+New `REGISTRY.json` SHA-256:
+
+```text
+149CCB53C06C210A9EBE40DDE0FB1DC6BFB2905471D4DB1E40EA1FCD5AFE08ED
+```
+
+Post-patch verification:
+
+- Global JSON parsed successfully.
+- Target directory contains only `REGISTRY.json`.
+- Registry contains one active root: `goal-life-cycle`.
+- Registered `state_path` exists: `C:/devhome/goal life cycle/outputs/STATE.json`.
+- No hooks, skills, RTK, routing, memory, provider config, watcher, daemon, or source goal files were changed by the global patch.
+- `.\\.venv\\Scripts\\python -m pytest` passed: 16 tests.
+- `goal_lifecycle.reconcile` regenerated repo-local STATE.
+- `goal_lifecycle.validate` accepted `registry/REGISTRY.json` and `outputs/STATE.json`.
