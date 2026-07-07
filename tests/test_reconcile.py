@@ -10,7 +10,16 @@ def make_workspace(name: str) -> Path:
     return root
 
 
-def write_goal(root: Path, folder: str, goal_id: str, status: str, evidence_status: str = "partial") -> None:
+def write_goal(
+    root: Path,
+    folder: str,
+    goal_id: str,
+    status: str,
+    evidence_status: str = "partial",
+    review_verdict: str = "pending",
+    write_plan: bool = True,
+    write_evidence: bool = True,
+) -> None:
     goal_dir = root / "goals" / folder / goal_id
     goal_dir.mkdir(parents=True)
     (goal_dir / "CONTRACT.md").write_text(
@@ -28,15 +37,16 @@ file_mode: directory
 project: test
 review:
   required: true
-  verdict: pending
+  verdict: {review_verdict}
 ---
 
 # Goal Contract
 """,
         encoding="utf-8",
     )
-    (goal_dir / "PLAN.md").write_text(
-        f"""---
+    if write_plan:
+        (goal_dir / "PLAN.md").write_text(
+            f"""---
 type: goal-plan
 schema_version: 1
 goal_id: {goal_id}
@@ -46,10 +56,11 @@ contract: ./CONTRACT.md
 evidence: ./EVIDENCE.md
 ---
 """,
-        encoding="utf-8",
-    )
-    (goal_dir / "EVIDENCE.md").write_text(
-        f"""---
+            encoding="utf-8",
+        )
+    if write_evidence:
+        (goal_dir / "EVIDENCE.md").write_text(
+            f"""---
 type: goal-evidence
 schema_version: 1
 goal_id: {goal_id}
@@ -61,8 +72,14 @@ review:
   verdict: pending
 ---
 """,
-        encoding="utf-8",
-    )
+            encoding="utf-8",
+        )
+
+
+def write_broken_contract(root: Path, folder: str, goal_id: str) -> None:
+    goal_dir = root / "goals" / folder / goal_id
+    goal_dir.mkdir(parents=True)
+    (goal_dir / "CONTRACT.md").write_text("---\n[not: valid: yaml\n---\n", encoding="utf-8")
 
 
 def write_registry(path: Path, goal_root: Path) -> None:
@@ -113,3 +130,77 @@ def test_reconcile_flags_status_folder_mismatch() -> None:
     entries = reconcile(registry, workspace / "outputs")
 
     assert "status_folder_mismatch" in entries[0].issues
+
+
+def test_reconcile_flags_missing_plan_and_evidence() -> None:
+    workspace = make_workspace("missing-files")
+    write_goal(
+        workspace,
+        "active",
+        "missing-files",
+        "in_progress",
+        review_verdict="PASS",
+        write_plan=False,
+        write_evidence=False,
+    )
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert entries[0].issues == ["missing_plan", "missing_evidence"]
+
+
+def test_reconcile_reports_missing_registered_root() -> None:
+    workspace = make_workspace("missing-root")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "does-not-exist")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert entries[0].status == "missing"
+    assert entries[0].issues == ["missing"]
+
+
+def test_reconcile_reports_parse_errors() -> None:
+    workspace = make_workspace("parse-error")
+    write_broken_contract(workspace, "active", "broken")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert entries[0].status == "parse_error"
+    assert entries[0].issues == ["parse_error"]
+
+
+def test_reconcile_covers_status_lifecycle_without_issues() -> None:
+    workspace = make_workspace("status-lifecycle")
+    for status in ["draft", "ready", "in_progress", "blocked"]:
+        write_goal(workspace, "active", f"{status}-goal", status, evidence_status="complete", review_verdict="PASS")
+    for status in ["completed", "cancelled"]:
+        write_goal(workspace, "completed", f"{status}-goal", status, evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert {entry.status for entry in entries} == {"draft", "ready", "in_progress", "blocked", "completed", "cancelled"}
+    assert all(entry.issues == [] for entry in entries)
+
+
+def test_rendered_state_groups_actionable_views() -> None:
+    workspace = make_workspace("rendered-views")
+    write_goal(workspace, "active", "needs-review", "review_pending")
+    write_goal(workspace, "completed", "mismatch", "in_progress", evidence_status="complete", review_verdict="PASS")
+    write_broken_contract(workspace, "active", "broken")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    reconcile(registry, workspace / "outputs")
+    rendered = (workspace / "outputs" / "STATE.md").read_text(encoding="utf-8")
+
+    assert "## Waiting Review" in rendered
+    assert "## Evidence Incomplete" in rendered
+    assert "## Folder Mismatches" in rendered
+    assert "## Parse Errors" in rendered
