@@ -30,6 +30,8 @@ The global `goal-preflight` skill patch has already passed proposal, independent
 
 The selected production topology is federated: each repo generates its own derived STATE, and a central global `.codex` registry aggregates registered repo STATE outputs. The global registry is not created in this step; it still requires a separate proposal, independent review, explicit approval, patch, and verification.
 
+The global registry proposal is drafted at `docs/proposals/global-goal-registry.md`. The next gate is independent review; approval token `APPROVE_GLOBAL_GOAL_REGISTRY_PATCH` is required before any global `.codex` write.
+
 ## Python Setup
 
 Use a repo-local virtual environment:
@@ -85,6 +87,8 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
+- `docs/proposals/global-goal-registry.md`: proposed global `.codex` registry creation gate.
+- `docs/global-registry-schema-notes.md`: schema notes for federated aggregation registry entries.
 - `docs/references/`: reference inputs for future skill and lifecycle design.
 - `docs/proposals/`: gated change proposals for future global skill work.
 - `schemas/`: draft schema notes for STATE and REGISTRY.
