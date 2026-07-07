@@ -5,6 +5,7 @@ description = "Read-only Goal Contract lifecycle reconciliation harness"
 requires-python = ">=3.11"
 dependencies = [
   "PyYAML>=6.0",
+  "jsonschema>=4.0",
 ]
 
 [project.optional-dependencies]

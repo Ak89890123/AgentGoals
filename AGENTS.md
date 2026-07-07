@@ -25,6 +25,7 @@ Setup and validation:
 - `.\.venv\Scripts\python -m pytest`
 - `$env:PYTHONPATH=(Resolve-Path src).Path`
 - `.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry/REGISTRY.json --out outputs`
+- `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs/STATE.json`
 
 Useful read-only checks:
 

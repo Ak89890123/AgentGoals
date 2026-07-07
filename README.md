@@ -53,6 +53,13 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 
 The command scans only registered roots, reads Goal Contract / PLAN / EVIDENCE frontmatter, and writes derived `outputs/STATE.json` and `outputs/STATE.md`.
 
+Validate registry and STATE JSON:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs/STATE.json
+```
+
 ## Non-goals
 
 - Do not edit `C:\Users\jimmy0302\.codex\skills\goal-preflight` yet.
