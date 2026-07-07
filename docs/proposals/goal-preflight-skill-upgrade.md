@@ -3,7 +3,7 @@ type: skill-change-proposal
 schema_version: 1
 id: goal-preflight-skill-upgrade
 title: Goal Preflight Skill Upgrade Proposal
-status: review_passed
+status: patched
 created: 2026-07-07
 updated: 2026-07-07
 target_skill: C:\Users\jimmy0302\.codex\skills\goal-preflight
@@ -13,6 +13,7 @@ review:
 approval:
   required_before_patch: true
   token: APPROVE_GOAL_PREFLIGHT_SKILL_UPGRADE_PATCH
+  received: true
 tags:
   - goal-preflight
   - skill-governance
@@ -228,3 +229,33 @@ APPROVE_GOAL_PREFLIGHT_SKILL_UPGRADE_PATCH
 ```
 
 Approval is scoped only to `goal-preflight` files explicitly listed in this proposal. It does not approve RTK, hooks, routing, memory governance, provider/model config, or watcher changes.
+
+## Patch Result
+
+Applied on 2026-07-07 after explicit approval token.
+
+Edited global file:
+
+- `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md`
+
+Created backup:
+
+- `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md.bak-20260707T113249`
+
+New `SKILL.md` SHA-256:
+
+```text
+F8256FDE7511CAC2481BC27181C19EBAC84CF67960064CE23AE5A7F8E40FCE83
+```
+
+Reference file hashes were rechecked and unchanged.
+
+Post-patch verification:
+
+- `goal-preflight/SKILL.md` frontmatter parsed successfully.
+- Expected patched phrases were found in `SKILL.md`.
+- `.\.venv\Scripts\python -m pytest` passed: 14 tests.
+- `goal_lifecycle.reconcile` regenerated STATE.
+- `goal_lifecycle.validate` accepted `registry/REGISTRY.json` and `outputs/STATE.json`.
+
+No RTK, hooks, routing, memory, provider/model config, or watcher files were edited.
