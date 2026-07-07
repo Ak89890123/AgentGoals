@@ -191,7 +191,7 @@ Reviewer: `codex_harness_master` / Godel (`019f3ae3-a1c8-7283-a5a2-c75ea665927a`
 
 Reviewer notes:
 
-- Low: `docs/global-registry-schema-notes.md` is a reviewed schema note, not executable JSON Schema. This is acceptable for the initial single-file registry patch, but automated aggregation should add a formal JSON Schema first.
+- Low: `docs/global-registry-schema-notes.md` is a reviewed schema note, not executable JSON Schema. This was acceptable for the initial single-file registry patch; automated aggregation now adds `schemas/global-registry.schema.json`.
 - Low: initial `state_path` points to repo-local `outputs/STATE.json`; patch gate must confirm repo-local STATE exists or accept that first aggregation reports it as missing without mutating source files.
 
 ## Approval Boundary

@@ -71,14 +71,23 @@ The registry is an allowlist. It does not grant permission to mutate repo goals.
 5. Render global `STATE.md`.
 6. Report missing or stale repo STATE as issues.
 
+Current implementation:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
+```
+
+The command validates the global registry against `schemas/global-registry.schema.json` and validates each repo-local STATE against `schemas/goal-state.schema.json` before merging.
+
 ## Boundary
 
-Allowed for the next implementation proposal:
+Implemented in the read-only aggregator:
 
 - schema extension for repo-local STATE paths;
 - read-only global aggregator command;
 - tests using fixture registries and fixture repo STATE outputs;
-- generated global STATE under a repo-local fixture output path.
+- generated global STATE under a requested output path.
 
 Not allowed without separate approval:
 
@@ -93,4 +102,3 @@ Not allowed without separate approval:
 - Whether global registry should store both `goal_root` and `state_path`, or infer one from the other.
 - Whether repo-local generated STATE should remain ignored everywhere or be committed in selected repos.
 - Whether the global aggregate should include completed goals by default or only active and review-pending goals.
-
