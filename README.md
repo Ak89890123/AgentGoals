@@ -82,7 +82,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 - `goals/active/goal-state-index/CONTRACT.md`: project contract.
 - `goals/active/goal-state-index/PLAN.md`: execution plan.
 - `goals/active/goal-state-index/EVIDENCE.md`: verification/evidence log.
-- `goals/active/production-state-location/`: production STATE topology decision and next-step plan.
+- `goals/completed/production-state-location/`: production STATE topology decision and global registry patch evidence.
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/production-readiness.md`: read-only production review packet.
