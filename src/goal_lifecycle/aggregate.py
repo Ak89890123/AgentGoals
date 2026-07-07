@@ -49,13 +49,21 @@ def load_global_registry(path: Path) -> list[GlobalRegistryRoot]:
     validate_instance(data, GLOBAL_REGISTRY_SCHEMA)
     roots = []
     for item in data.get("roots", []):
+        repo_root = Path(item["repo_root"])
+        goal_root = Path(item["goal_root"])
+        state_path = Path(item["state_path"])
+        require_absolute_path(repo_root, item["id"], "repo_root")
+        require_absolute_path(goal_root, item["id"], "goal_root")
+        require_absolute_path(state_path, item["id"], "state_path")
+        ensure_within(goal_root, repo_root, item["id"], "goal_root", "repo_root")
+        ensure_within(state_path, repo_root, item["id"], "state_path", "repo_root")
         roots.append(
             GlobalRegistryRoot(
                 id=item["id"],
                 label=item.get("label", item["id"]),
-                repo_root=Path(item["repo_root"]),
-                goal_root=Path(item["goal_root"]),
-                state_path=Path(item["state_path"]),
+                repo_root=repo_root,
+                goal_root=goal_root,
+                state_path=state_path,
                 scope=item.get("scope", "repo"),
                 project=item.get("project", item["id"]),
                 active=bool(item.get("active", True)),
@@ -70,8 +78,9 @@ def read_repo_state(root: GlobalRegistryRoot) -> list[StateEntry]:
 
     try:
         validate_state(root.state_path)
-        text = root.state_path.read_text(encoding="utf-8")
+        text = root.state_path.read_text(encoding="utf-8-sig")
         payload = json.loads(text)
+        return [entry_from_payload(item, root) for item in payload.get("entries", [])]
     except Exception as exc:
         return [
             aggregate_issue_entry(
@@ -83,19 +92,29 @@ def read_repo_state(root: GlobalRegistryRoot) -> list[StateEntry]:
             )
         ]
 
-    return [entry_from_payload(item) for item in payload.get("entries", [])]
 
+def entry_from_payload(item: dict[str, Any], root: GlobalRegistryRoot) -> StateEntry:
+    goal_root = normalize_entry_path(item["goal_root"], root)
+    ensure_within(goal_root, root.goal_root, item["id"], "goal_root", "registered goal_root")
+    contract_path = normalize_optional_entry_path(item["contract_path"], root)
+    if contract_path:
+        ensure_within(contract_path, root.goal_root, item["id"], "contract_path", "registered goal_root")
+    plan_path = normalize_optional_entry_path(item["plan_path"], root)
+    if plan_path:
+        ensure_within(plan_path, root.goal_root, item["id"], "plan_path", "registered goal_root")
+    evidence_path = normalize_optional_entry_path(item["evidence_path"], root)
+    if evidence_path:
+        ensure_within(evidence_path, root.goal_root, item["id"], "evidence_path", "registered goal_root")
 
-def entry_from_payload(item: dict[str, Any]) -> StateEntry:
     return StateEntry(
         id=item["id"],
         title=item["title"],
         status=item["status"],
         project=item["project"],
-        goal_root=item["goal_root"],
-        contract_path=item["contract_path"],
-        plan_path=item["plan_path"],
-        evidence_path=item["evidence_path"],
+        goal_root=str(goal_root),
+        contract_path=str(contract_path) if contract_path else "",
+        plan_path=str(plan_path) if plan_path else None,
+        evidence_path=str(evidence_path) if evidence_path else None,
         owner=item["owner"],
         updated=item["updated"],
         completed=item["completed"],
@@ -107,6 +126,29 @@ def entry_from_payload(item: dict[str, Any]) -> StateEntry:
         last_seen=item["last_seen"],
         issues=list(item["issues"]),
     )
+
+
+def require_absolute_path(path: Path, root_id: str, field_name: str) -> None:
+    if not path.is_absolute():
+        raise ValueError(f"roots[{root_id}].{field_name} must be an absolute path: {path}")
+
+
+def normalize_entry_path(value: str, root: GlobalRegistryRoot) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else root.repo_root / path
+
+
+def normalize_optional_entry_path(value: str | None, root: GlobalRegistryRoot) -> Path | None:
+    if not value:
+        return None
+    return normalize_entry_path(value, root)
+
+
+def ensure_within(path: Path, base: Path, root_id: str, field_name: str, base_name: str) -> None:
+    try:
+        path.resolve().relative_to(base.resolve())
+    except ValueError as exc:
+        raise ValueError(f"{root_id}.{field_name} is outside {base_name}: {path}") from exc
 
 
 def aggregate_issue_entry(
@@ -166,7 +208,7 @@ def validate_instance(instance: dict[str, Any], schema_path: Path) -> None:
 
 def hash_file_if_readable(path: Path) -> str:
     try:
-        return hashlib.sha256(path.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+        return hashlib.sha256(path.read_text(encoding="utf-8-sig").encode("utf-8")).hexdigest()
     except Exception:
         return ""
 

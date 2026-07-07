@@ -60,7 +60,7 @@ A global registry entry should identify:
 - added date;
 - last seen timestamp.
 
-The registry is an allowlist. It does not grant permission to mutate repo goals.
+The registry is an allowlist. `repo_root`, `goal_root`, and `state_path` must be absolute paths. `goal_root` and `state_path` must stay under `repo_root`. The registry does not grant permission to mutate repo goals.
 
 ## Aggregation Flow
 
@@ -78,7 +78,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 .\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
 ```
 
-The command validates the global registry against `schemas/global-registry.schema.json` and validates each repo-local STATE against `schemas/goal-state.schema.json` before merging.
+The command validates the global registry against `schemas/global-registry.schema.json` and validates each repo-local STATE against `schemas/goal-state.schema.json` before merging. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.
 
 ## Boundary
 
@@ -86,7 +86,7 @@ Implemented in the read-only aggregator:
 
 - schema extension for repo-local STATE paths;
 - read-only global aggregator command;
-- tests using fixture registries and fixture repo STATE outputs;
+- tests using fixture registries and fixture repo STATE outputs, including absolute path enforcement, path-scope rejection, BOM handling, and multi-root merge coverage;
 - generated global STATE under a requested output path.
 
 Not allowed without separate approval:
