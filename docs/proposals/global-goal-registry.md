@@ -3,13 +3,13 @@ type: global-change-proposal
 schema_version: 1
 id: global-goal-registry
 title: Global Goal Lifecycle Registry Proposal
-status: draft
+status: reviewed
 created: 2026-07-07
 updated: 2026-07-07
 target_root: C:\Users\jimmy0302\.codex\goal-lifecycle
 review:
   required: true
-  verdict: pending
+  verdict: PASS
 approval:
   required_before_patch: true
   token: APPROVE_GLOBAL_GOAL_REGISTRY_PATCH
@@ -101,6 +101,8 @@ Global registry should add:
 
 `goal_root` remains required so the registry can explain source ownership and future repo-local reconcile commands.
 
+The reviewed schema artifact for the first global registry patch is `docs/global-registry-schema-notes.md`. A formal JSON Schema for the global registry should be added before implementing automated global aggregation.
+
 ## Non-Goals
 
 - Do not edit global `.codex` files until review passes and approval token is supplied.
@@ -142,7 +144,8 @@ Before global patch:
 
 1. Run independent review on this proposal.
 2. Confirm target path existence and baseline file hashes, if any.
-3. Confirm approval token is supplied exactly:
+3. Confirm the repo-local `state_path` exists by running repo-local reconcile first, or record that first global aggregation may report the registered repo STATE as missing.
+4. Confirm approval token is supplied exactly:
 
 ```text
 APPROVE_GLOBAL_GOAL_REGISTRY_PATCH
@@ -151,7 +154,7 @@ APPROVE_GLOBAL_GOAL_REGISTRY_PATCH
 After approved patch:
 
 1. Verify global JSON parses.
-2. Validate global registry against the reviewed schema.
+2. Validate global registry against the reviewed schema artifact: `docs/global-registry-schema-notes.md`.
 3. Confirm no RTK, hooks, skill routing, memory, provider, or config files changed.
 4. Run this harness:
 
@@ -182,7 +185,14 @@ Reviewer verdict must be one of:
 - `FAIL`
 - `NEEDS_EVIDENCE`
 
-Current verdict: `pending`
+Current verdict: `PASS`
+
+Reviewer: `codex_harness_master` / Godel (`019f3ae3-a1c8-7283-a5a2-c75ea665927a`)
+
+Reviewer notes:
+
+- Low: `docs/global-registry-schema-notes.md` is a reviewed schema note, not executable JSON Schema. This is acceptable for the initial single-file registry patch, but automated aggregation should add a formal JSON Schema first.
+- Low: initial `state_path` points to repo-local `outputs/STATE.json`; patch gate must confirm repo-local STATE exists or accept that first aggregation reports it as missing without mutating source files.
 
 ## Approval Boundary
 
@@ -199,4 +209,3 @@ Approval is scoped only to:
 - creating timestamped backups for changed files.
 
 It does not approve global hooks, skill edits, RTK edits, memory-store edits, routing changes, provider/model config changes, watchers, daemons, scheduled tasks, or source goal mutation.
-
