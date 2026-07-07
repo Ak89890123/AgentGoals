@@ -36,5 +36,8 @@ The existing repo-local registry schema can either:
 1. stay separate from a new global registry schema; or
 2. be extended with optional `repo_root` and `state_path` fields.
 
-Recommendation: add a separate global schema first, because repo-local reconcile does not need `state_path`.
+Decision: use a separate global schema first, because repo-local reconcile does not need `state_path`.
 
+Executable schema:
+
+- `schemas/global-registry.schema.json`

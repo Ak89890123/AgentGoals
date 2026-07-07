@@ -66,6 +66,19 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 .\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs/STATE.json
 ```
 
+## Global Aggregate
+
+Run the read-only global aggregator against the reviewed global registry:
+
+```powershell
+$env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
+.\.venv\Scripts\python -m goal_lifecycle.validate --state outputs\global\STATE.json
+```
+
+The aggregator reads only registered `state_path` files and writes only the requested output directory. Missing or malformed repo STATE files become aggregate issues.
+
 ## Non-goals
 
 - Do not make additional global `.codex` edits without a new proposal, independent review, explicit approval, patch, and verification.
@@ -89,6 +102,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
 - `docs/proposals/global-goal-registry.md`: proposed global `.codex` registry creation gate.
 - `docs/global-registry-schema-notes.md`: schema notes for federated aggregation registry entries.
+- `schemas/global-registry.schema.json`: executable schema for global registry entries.
 - `docs/references/`: reference inputs for future skill and lifecycle design.
 - `docs/proposals/`: gated change proposals for future global skill work.
 - `schemas/`: draft schema notes for STATE and REGISTRY.
