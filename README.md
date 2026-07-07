@@ -78,5 +78,6 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 - `goals/active/goal-state-index/EVIDENCE.md`: verification/evidence log.
 - `docs/design.md`: system design notes.
 - `docs/references/`: reference inputs for future skill and lifecycle design.
+- `docs/proposals/`: gated change proposals for future global skill work.
 - `schemas/`: draft schema notes for STATE and REGISTRY.
 - `fixtures/`: sample goal roots for tests.
