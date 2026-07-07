@@ -19,9 +19,11 @@ def write_goal(
     review_verdict: str = "pending",
     write_plan: bool = True,
     write_evidence: bool = True,
+    updated: str | None = "2026-07-07",
 ) -> None:
     goal_dir = root / "goals" / folder / goal_id
     goal_dir.mkdir(parents=True)
+    updated_line = f"updated: {updated}\n" if updated is not None else ""
     (goal_dir / "CONTRACT.md").write_text(
         f"""---
 type: goal-contract
@@ -30,8 +32,7 @@ id: {goal_id}
 title: {goal_id}
 status: {status}
 created: 2026-07-07
-updated: 2026-07-07
-completed:
+{updated_line}completed:
 owner: engineering
 file_mode: directory
 project: test
@@ -80,6 +81,11 @@ def write_broken_contract(root: Path, folder: str, goal_id: str) -> None:
     goal_dir = root / "goals" / folder / goal_id
     goal_dir.mkdir(parents=True)
     (goal_dir / "CONTRACT.md").write_text("---\n[not: valid: yaml\n---\n", encoding="utf-8")
+
+
+def write_broken_related_file(root: Path, folder: str, goal_id: str, filename: str) -> None:
+    goal_dir = root / "goals" / folder / goal_id
+    (goal_dir / filename).write_text("---\n[not: valid: yaml\n---\n", encoding="utf-8")
 
 
 def write_registry(path: Path, goal_root: Path) -> None:
@@ -172,6 +178,43 @@ def test_reconcile_reports_parse_errors() -> None:
 
     assert entries[0].status == "parse_error"
     assert entries[0].issues == ["parse_error"]
+
+
+def test_reconcile_reports_related_metadata_parse_errors_without_aborting() -> None:
+    workspace = make_workspace("related-parse-error")
+    write_goal(workspace, "active", "broken-evidence", "in_progress", evidence_status="complete", review_verdict="PASS")
+    write_broken_related_file(workspace, "active", "broken-evidence", "EVIDENCE.md")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert len(entries) == 1
+    assert entries[0].id == "broken-evidence"
+    assert entries[0].status == "in_progress"
+    assert "parse_error" in entries[0].issues
+    assert "EVIDENCE.md" in str(entries[0].blocked_reason)
+
+
+def test_reconcile_flags_stale_when_contract_has_no_updated_date() -> None:
+    workspace = make_workspace("stale-contract")
+    write_goal(
+        workspace,
+        "active",
+        "stale-goal",
+        "in_progress",
+        evidence_status="complete",
+        review_verdict="PASS",
+        updated=None,
+    )
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert entries[0].issues == ["stale"]
+    rendered = (workspace / "outputs" / "STATE.md").read_text(encoding="utf-8")
+    assert "## Stale Entries" in rendered
 
 
 def test_reconcile_covers_status_lifecycle_without_issues() -> None:
