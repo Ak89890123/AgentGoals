@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from typing import Protocol
 
 
@@ -14,7 +15,7 @@ class StateLike(Protocol):
     issues: list[str]
 
 
-def render_state_markdown(entries: list[StateLike]) -> str:
+def render_state_markdown(entries: Sequence[StateLike]) -> str:
     counts = Counter(entry.status for entry in entries)
     lines = [
         "# Goal State",
@@ -32,6 +33,7 @@ def render_state_markdown(entries: list[StateLike]) -> str:
 
     append_issue_group(lines, "Waiting Review", entries, "review_pending")
     append_issue_group(lines, "Evidence Incomplete", entries, "evidence_incomplete")
+    append_issue_group(lines, "Stale Entries", entries, "stale")
     append_issue_group(lines, "Folder Mismatches", entries, "status_folder_mismatch")
     append_issue_group(lines, "Parse Errors", entries, "parse_error")
 
@@ -56,7 +58,7 @@ def render_state_markdown(entries: list[StateLike]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def append_issue_group(lines: list[str], title: str, entries: list[StateLike], issue: str) -> None:
+def append_issue_group(lines: list[str], title: str, entries: Sequence[StateLike], issue: str) -> None:
     matching = [entry for entry in entries if issue in entry.issues]
     if not matching:
         return

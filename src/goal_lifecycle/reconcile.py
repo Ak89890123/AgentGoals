@@ -112,7 +112,7 @@ def scan_goal_root(root: RegistryRoot) -> list[StateEntry]:
         folder = root.goal_root / folder_name
         if not folder.exists():
             continue
-        for path in sorted(folder.rglob("*.md")):
+        for path in sorted(folder.rglob("CONTRACT.md")):
             entry = parse_contract_candidate(path, folder_name, root)
             if entry is not None:
                 entries.append(entry)
@@ -132,11 +132,12 @@ def parse_contract_candidate(path: Path, folder_name: str, root: RegistryRoot) -
     goal_dir = path.parent if path.name.upper() == "CONTRACT.MD" else path.parent
     plan_path = goal_dir / "PLAN.md"
     evidence_path = goal_dir / "EVIDENCE.md"
-    plan_metadata = read_optional_metadata(plan_path)
-    evidence_metadata = read_optional_metadata(evidence_path)
+    related_errors: list[str] = []
+    plan_metadata = read_optional_metadata(plan_path, related_errors)
+    evidence_metadata = read_optional_metadata(evidence_path, related_errors)
 
     status = str(document.metadata.get("status") or "draft")
-    issues = detect_issues(folder_name, status, plan_path, evidence_path, document.metadata, evidence_metadata)
+    issues = detect_issues(folder_name, status, plan_path, evidence_path, document.metadata, evidence_metadata, related_errors)
 
     review = normalize_review(document.metadata.get("review"))
     evidence = {"status": evidence_metadata.get("status") if evidence_metadata else None}
@@ -156,17 +157,21 @@ def parse_contract_candidate(path: Path, folder_name: str, root: RegistryRoot) -
         review=review,
         evidence=evidence,
         next_action=None,
-        blocked_reason=None,
+        blocked_reason="; ".join(related_errors) if related_errors else None,
         source_hash=sha256_text(text),
         last_seen=now_iso(),
         issues=issues,
     )
 
 
-def read_optional_metadata(path: Path) -> dict[str, Any]:
+def read_optional_metadata(path: Path, errors: list[str]) -> dict[str, Any]:
     if not path.exists():
         return {}
-    document = parse_frontmatter(path.read_text(encoding="utf-8"))
+    try:
+        document = parse_frontmatter(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        errors.append(f"{path.name}: {type(exc).__name__}: {exc}")
+        return {}
     return document.metadata
 
 
@@ -177,6 +182,7 @@ def detect_issues(
     evidence_path: Path,
     contract_metadata: dict[str, Any],
     evidence_metadata: dict[str, Any],
+    related_errors: list[str],
 ) -> list[str]:
     issues: list[str] = []
     if folder_name == "active" and status in DONE_STATUSES:
@@ -189,6 +195,10 @@ def detect_issues(
         issues.append("missing_evidence")
     if evidence_metadata.get("status") in {"pending", "partial"}:
         issues.append("evidence_incomplete")
+    if related_errors:
+        issues.append("parse_error")
+    if not contract_metadata.get("updated"):
+        issues.append("stale")
 
     review = normalize_review(contract_metadata.get("review"))
     if review.get("required") and review.get("verdict") in {None, "pending", "NEEDS_EVIDENCE"}:
