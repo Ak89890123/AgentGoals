@@ -41,6 +41,18 @@ $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 Runtime and test dependencies are intentionally small: `PyYAML` for frontmatter parsing and `pytest` for fixture-driven validation.
 `.tmp/` is ignored and can be used as repo-local temp storage when the system temp directory is unavailable from the sandbox. Pytest is configured with `-s -p no:cacheprovider` to avoid tempfile-backed output capture and cache writes in this environment.
 
+## Reconcile
+
+Run the read-only reconciler:
+
+```powershell
+$env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry/REGISTRY.json --out outputs
+```
+
+The command scans only registered roots, reads Goal Contract / PLAN / EVIDENCE frontmatter, and writes derived `outputs/STATE.json` and `outputs/STATE.md`.
+
 ## Non-goals
 
 - Do not edit `C:\Users\jimmy0302\.codex\skills\goal-preflight` yet.

@@ -23,6 +23,8 @@ Setup and validation:
 - `$env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP`
 - `.\.venv\Scripts\python -m pip install -r requirements.txt`
 - `.\.venv\Scripts\python -m pytest`
+- `$env:PYTHONPATH=(Resolve-Path src).Path`
+- `.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry/REGISTRY.json --out outputs`
 
 Useful read-only checks:
 
@@ -39,6 +41,7 @@ Useful read-only checks:
 - Do not duplicate frontmatter metadata in body sections.
 - Prefer concise, file-backed guidance over generic process text.
 - Put reusable Python code under `src/goal_lifecycle/` and tests under `tests/`.
+- Generated `outputs/STATE.json` and `outputs/STATE.md` are ignored because STATE is derived.
 
 Directory-mode goals should use:
 

@@ -25,3 +25,10 @@ def test_parse_document_without_frontmatter() -> None:
 
     assert document.metadata == {}
     assert document.body == "# Plain Markdown\n"
+
+
+def test_parse_frontmatter_with_utf8_bom() -> None:
+    document = parse_frontmatter("\ufeff---\nid: bom-goal\n---\n# Body\n")
+
+    assert document.metadata["id"] == "bom-goal"
+    assert document.body == "# Body"
