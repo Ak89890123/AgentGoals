@@ -138,6 +138,17 @@ def test_global_registry_rejects_state_path_outside_repo_root() -> None:
         load_global_registry(registry)
 
 
+def test_global_registry_rejects_goal_root_outside_repo_root() -> None:
+    workspace = make_workspace("aggregate-goal-root-outside")
+    registry = workspace / "global" / "REGISTRY.json"
+    root = global_root(workspace, "outside-goal-root", workspace / "outputs" / "STATE.json")
+    root["goal_root"] = (workspace.parent / "outside" / "goals").resolve().as_posix()
+    write_global_registry(registry, [root])
+
+    with pytest.raises(ValueError, match="outside repo_root"):
+        load_global_registry(registry)
+
+
 def test_aggregate_rebases_relative_repo_state_paths() -> None:
     workspace = make_workspace("aggregate-rebase")
     write_goal(workspace, "active", "repo-goal", "review_pending")
