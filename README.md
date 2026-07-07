@@ -28,6 +28,8 @@ The first bounded subgoal is the central Goal State Index:
 
 The global `goal-preflight` skill patch has already passed proposal, independent review, explicit approval, patch, and verification. The read-only lifecycle harness has also passed production-readiness review for `production_read_only` operator use.
 
+The selected production topology is federated: each repo generates its own derived STATE, and a central global `.codex` registry aggregates registered repo STATE outputs. The global registry is not created in this step; it still requires a separate proposal, independent review, explicit approval, patch, and verification.
+
 ## Python Setup
 
 Use a repo-local virtual environment:
@@ -78,9 +80,11 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 - `goals/active/goal-state-index/CONTRACT.md`: project contract.
 - `goals/active/goal-state-index/PLAN.md`: execution plan.
 - `goals/active/goal-state-index/EVIDENCE.md`: verification/evidence log.
+- `goals/active/production-state-location/`: production STATE topology decision and next-step plan.
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/production-readiness.md`: read-only production review packet.
+- `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
 - `docs/references/`: reference inputs for future skill and lifecycle design.
 - `docs/proposals/`: gated change proposals for future global skill work.
 - `schemas/`: draft schema notes for STATE and REGISTRY.
