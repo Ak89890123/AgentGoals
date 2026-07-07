@@ -1,13 +1,15 @@
-﻿# Goal State Schema Draft
+﻿# Goal State Schema
 
 STATE is a derived index. Source files remain authoritative.
+
+Machine-readable schema: `schemas/goal-state.schema.json`.
 
 ## Entry Fields
 
 ```yaml
 id: string
 title: string
-status: draft | review_pending | ready | in_progress | blocked | completed | cancelled
+status: draft | review_pending | ready | in_progress | blocked | completed | cancelled | missing | parse_error
 project: string
 goal_root: string
 contract_path: string

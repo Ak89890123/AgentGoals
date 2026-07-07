@@ -1,6 +1,8 @@
-﻿# Goal Registry Schema Draft
+﻿# Goal Registry Schema
 
 REGISTRY lists known goal roots. It avoids broad filesystem scans.
+
+Machine-readable schema: `schemas/goal-registry.schema.json`.
 
 ```yaml
 version: 1

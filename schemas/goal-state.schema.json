@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.goal-lifecycle/schemas/goal-state.schema.json",
+  "title": "Goal State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "generated_at", "entries"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "status",
+        "project",
+        "goal_root",
+        "contract_path",
+        "plan_path",
+        "evidence_path",
+        "owner",
+        "updated",
+        "completed",
+        "review",
+        "evidence",
+        "next_action",
+        "blocked_reason",
+        "source_hash",
+        "last_seen",
+        "issues"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "review_pending",
+            "ready",
+            "in_progress",
+            "blocked",
+            "completed",
+            "cancelled",
+            "missing",
+            "parse_error"
+          ]
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goal_root": {
+          "type": "string"
+        },
+        "contract_path": {
+          "type": "string"
+        },
+        "plan_path": {
+          "type": ["string", "null"]
+        },
+        "evidence_path": {
+          "type": ["string", "null"]
+        },
+        "owner": {
+          "type": ["string", "null"]
+        },
+        "updated": {
+          "type": ["string", "null"]
+        },
+        "completed": {
+          "type": ["string", "null"]
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "verdict"],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "verdict": {
+              "enum": ["pending", "PASS", "FAIL", "NEEDS_EVIDENCE", null]
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "enum": ["pending", "partial", "complete", null]
+            }
+          }
+        },
+        "next_action": {
+          "type": ["string", "null"]
+        },
+        "blocked_reason": {
+          "type": ["string", "null"]
+        },
+        "source_hash": {
+          "type": "string"
+        },
+        "last_seen": {
+          "type": "string"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "missing",
+              "missing_plan",
+              "missing_evidence",
+              "stale",
+              "status_folder_mismatch",
+              "parse_error",
+              "review_pending",
+              "evidence_incomplete"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
