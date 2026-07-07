@@ -30,6 +30,11 @@ def render_state_markdown(entries: list[StateLike]) -> str:
     else:
         lines.append("- No goals found.")
 
+    append_issue_group(lines, "Waiting Review", entries, "review_pending")
+    append_issue_group(lines, "Evidence Incomplete", entries, "evidence_incomplete")
+    append_issue_group(lines, "Folder Mismatches", entries, "status_folder_mismatch")
+    append_issue_group(lines, "Parse Errors", entries, "parse_error")
+
     lines.extend(["", "## Entries", ""])
     for entry in entries:
         issues = ", ".join(f"`{issue}`" for issue in entry.issues) if entry.issues else "none"
@@ -49,3 +54,12 @@ def render_state_markdown(entries: list[StateLike]) -> str:
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def append_issue_group(lines: list[str], title: str, entries: list[StateLike], issue: str) -> None:
+    matching = [entry for entry in entries if issue in entry.issues]
+    if not matching:
+        return
+    lines.extend(["", f"## {title}", ""])
+    for entry in matching:
+        lines.append(f"- `{entry.id}`: {entry.title}")
