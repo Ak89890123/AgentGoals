@@ -24,9 +24,10 @@ Each global registry entry should include:
 ## Validation Rules
 
 - `id` must remain stable and kebab-case.
-- `repo_root`, `goal_root`, and `state_path` must be explicit paths; no whole-disk discovery.
+- `repo_root`, `goal_root`, and `state_path` must be absolute paths; no whole-disk discovery.
+- `goal_root` and `state_path` must remain under `repo_root`.
 - inactive entries should remain in the registry but must not be read by aggregation.
-- missing or malformed `state_path` should produce an aggregate issue, not a source mutation.
+- missing, malformed, or path-scope-invalid `state_path` content should produce an aggregate issue, not a source mutation.
 - the registry does not grant permission to edit repo-local files.
 
 ## Open Implementation Choice

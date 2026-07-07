@@ -28,9 +28,9 @@ The first bounded subgoal is the central Goal State Index:
 
 The global `goal-preflight` skill patch has already passed proposal, independent review, explicit approval, patch, and verification. The read-only lifecycle harness has also passed production-readiness review for `production_read_only` operator use.
 
-The selected production topology is federated: each repo generates its own derived STATE, and a central global `.codex` registry aggregates registered repo STATE outputs. The global registry is not created in this step; it still requires a separate proposal, independent review, explicit approval, patch, and verification.
+The selected production topology is federated: each repo generates its own derived STATE, and the reviewed central global `.codex` registry aggregates registered repo STATE outputs.
 
-The global registry proposal is drafted at `docs/proposals/global-goal-registry.md`. The next gate is independent review; approval token `APPROVE_GLOBAL_GOAL_REGISTRY_PATCH` is required before any global `.codex` write.
+The global registry patch is complete at `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`. Additional global `.codex` writes still require a separate proposal, independent review, explicit approval, patch, and verification.
 
 ## Python Setup
 
@@ -77,7 +77,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 .\.venv\Scripts\python -m goal_lifecycle.validate --state outputs\global\STATE.json
 ```
 
-The aggregator reads only registered `state_path` files and writes only the requested output directory. Missing or malformed repo STATE files become aggregate issues.
+The aggregator reads only registered absolute `state_path` files and writes only the requested output directory. Missing or malformed repo STATE files become aggregate issues. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.
 
 ## Non-goals
 
