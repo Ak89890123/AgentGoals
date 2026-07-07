@@ -3,13 +3,13 @@ type: skill-change-proposal
 schema_version: 1
 id: goal-preflight-skill-upgrade
 title: Goal Preflight Skill Upgrade Proposal
-status: draft
+status: review_passed
 created: 2026-07-07
 updated: 2026-07-07
 target_skill: C:\Users\jimmy0302\.codex\skills\goal-preflight
 review:
   required: true
-  verdict: pending
+  verdict: PASS
 approval:
   required_before_patch: true
   token: APPROVE_GOAL_PREFLIGHT_SKILL_UPGRADE_PATCH
@@ -207,9 +207,19 @@ Reviewer verdict must be one of:
 - `FAIL`
 - `NEEDS_EVIDENCE`
 
+Current verdict: `PASS`
+
+Reviewer: `codex_harness_master` / Pasteur (`019f3a8e-ed40-7481-801a-011986faf755`)
+
+Reviewer finding:
+
+- No blocking findings.
+- Low severity: the proposal lists the full `goal-preflight` package as target files rather than the exact final edited subset. Patch step must report exact edited files before applying.
+
 ## Approval Boundary
 
 The next gate is independent review of this proposal.
+Independent review has passed.
 
 Even after review passes, patching global files requires this exact approval token:
 
