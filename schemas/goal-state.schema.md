@@ -27,9 +27,13 @@ source_hash: string
 last_seen: ISO-8601 datetime
 issues:
   - missing
+  - missing_plan
+  - missing_evidence
   - stale
   - status_folder_mismatch
   - parse_error
+  - review_pending
+  - evidence_incomplete
 ```
 
 ## Views

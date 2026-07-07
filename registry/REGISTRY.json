@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "updated": "2026-07-07",
+  "roots": [
+    {
+      "id": "goal-life-cycle",
+      "label": "Goal Life Cycle Harness",
+      "goal_root": "goals",
+      "scope": "harness",
+      "project": "goal life cycle",
+      "active": true,
+      "added": "2026-07-07",
+      "last_seen": null
+    }
+  ]
+}

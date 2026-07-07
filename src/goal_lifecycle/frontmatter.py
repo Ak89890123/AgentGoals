@@ -14,6 +14,7 @@ class FrontmatterDocument:
 
 def parse_frontmatter(text: str) -> FrontmatterDocument:
     """Parse YAML frontmatter from a Markdown document."""
+    text = text.removeprefix("\ufeff")
     if not text.startswith("---"):
         return FrontmatterDocument(metadata={}, body=text)
 
