@@ -79,6 +79,36 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 
 The aggregator reads only registered absolute `state_path` files and writes only the requested output directory. Missing or malformed repo STATE files become aggregate issues. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.
 
+## Deterministic Run
+
+Run the local read-only pipeline with one command:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.run --registry registry/REGISTRY.json --out outputs
+```
+
+Add the reviewed global registry to continue through global aggregation and validation:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.run `
+  --registry registry/REGISTRY.json `
+  --out outputs `
+  --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --global-out outputs\global `
+  --json
+```
+
+The command runs four deterministic stages: `reconcile`, `validate_local`, `aggregate`, and `validate_global`. Global stages are marked `skipped` when no global registry is supplied. Exit codes are:
+
+- `0`: all configured stages passed with no lifecycle issues;
+- `1`: an operational or schema-validation stage failed;
+- `2`: configured stages completed, but generated STATE contains lifecycle issues.
+
+Use `--json` for a versioned compact summary containing stage status, output paths, entry counts, issue counts, and failure or skip details.
+
+The orchestrator rejects `--out` and configured global output paths under the user's global `.codex` directory.
+
 ## Non-goals
 
 - Do not make additional global `.codex` edits without a new proposal, independent review, explicit approval, patch, and verification.
@@ -100,6 +130,7 @@ The aggregator reads only registered absolute `state_path` files and writes only
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
+- `goals/completed/deterministic-lifecycle-orchestration/`: completed implementation goal for the deterministic single-command operator flow.
 - `docs/proposals/global-goal-registry.md`: proposed global `.codex` registry creation gate.
 - `docs/global-registry-schema-notes.md`: schema notes for federated aggregation registry entries.
 - `schemas/global-registry.schema.json`: executable schema for global registry entries.

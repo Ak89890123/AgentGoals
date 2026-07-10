@@ -40,6 +40,56 @@ $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 .\.venv\Scripts\python -m pytest
 ```
 
+## Deterministic Operator Flow
+
+Use the orchestrator when the caller should not have to select and inspect each lifecycle command separately:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.run --registry registry\REGISTRY.json --out outputs
+```
+
+To continue through the registered global STATE:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.run `
+  --registry registry\REGISTRY.json `
+  --out outputs `
+  --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --global-out outputs\global
+```
+
+Add `--json` to emit a compact machine summary. Actual output always contains all four stages; this abbreviated example shows the stable field shape for one stage:
+
+```json
+{
+  "version": 1,
+  "status": "passed",
+  "exit_code": 0,
+  "stages": [
+    {
+      "name": "reconcile",
+      "status": "passed",
+      "output_path": "C:\\path\\to\\outputs\\STATE.json",
+      "entry_count": 3,
+      "issue_count": 0,
+      "message": null
+    }
+  ]
+}
+```
+
+Stage status values are `passed`, `issues`, `failed`, and `skipped`. A failed stage skips dependent later stages. Global stages are also skipped, without failure, when no global registry is supplied.
+
+Exit codes:
+
+- `0`: clean run;
+- `1`: operational or validation failure;
+- `2`: run completed with lifecycle issues.
+
+The orchestrator calls existing Python APIs directly. It does not start child Codex sessions, invoke an LLM, mutate Goal source files, move goals, or run in the background.
+It also canonicalizes output paths and rejects local or global output directories under the user's global `.codex` directory.
+
 ## Issue Interpretation
 
 - `missing`: registered root or expected goal path is missing.

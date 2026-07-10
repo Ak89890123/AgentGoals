@@ -10,7 +10,7 @@ This repository is a harness for CODEX Skill lifecycle work, centered on Goal Co
 - `docs/references/` stores reference inputs for future skill and lifecycle design.
 - `schemas/` contains draft STATE and REGISTRY schema notes.
 - `fixtures/` is reserved for synthetic goal roots used by reconciler tests.
-- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, and global aggregator.
+- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, and deterministic orchestrator.
 - `.omo/evidence/` contains independent review reports for aggregator readiness.
 
 Goal Contract, PLAN, and EVIDENCE files are the authoritative source. A generated central STATE must be treated as a derived index or dashboard only.
@@ -30,6 +30,7 @@ Setup and validation:
 - `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs/STATE.json`
 - `.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global`
 - `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs\global\STATE.json`
+- `.\.venv\Scripts\python -m goal_lifecycle.run --registry registry/REGISTRY.json --out outputs --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --global-out outputs\global --json`
 
 Useful read-only checks:
 
