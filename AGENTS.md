@@ -5,7 +5,7 @@
 This repository is a harness for CODEX Skill lifecycle work, centered on Goal Contract, Plan, and Evidence files.
 
 - `goals/active/codex-skill-optimization/` is the umbrella goal for the full CODEX Skill optimization effort.
-- `goals/active/goal-state-index/` is the first bounded subgoal for central STATE / REGISTRY / reconciler design.
+- `goals/completed/goal-state-index/` is the completed first bounded subgoal for central STATE / REGISTRY / reconciler design.
 - `docs/design.md` describes the central Goal State Index architecture.
 - `docs/references/` stores reference inputs for future skill and lifecycle design.
 - `schemas/` contains draft STATE and REGISTRY schema notes.

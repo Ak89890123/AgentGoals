@@ -92,9 +92,9 @@ The aggregator reads only registered absolute `state_path` files and writes only
 - `goals/active/codex-skill-optimization/CONTRACT.md`: umbrella contract for the full CODEX Skill optimization effort.
 - `goals/active/codex-skill-optimization/PLAN.md`: umbrella execution plan.
 - `goals/active/codex-skill-optimization/EVIDENCE.md`: umbrella verification/evidence log.
-- `goals/active/goal-state-index/CONTRACT.md`: project contract.
-- `goals/active/goal-state-index/PLAN.md`: execution plan.
-- `goals/active/goal-state-index/EVIDENCE.md`: verification/evidence log.
+- `goals/completed/goal-state-index/CONTRACT.md`: completed project contract.
+- `goals/completed/goal-state-index/PLAN.md`: completed execution plan.
+- `goals/completed/goal-state-index/EVIDENCE.md`: completed verification/evidence log.
 - `goals/completed/production-state-location/`: production STATE topology decision and global registry patch evidence.
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
