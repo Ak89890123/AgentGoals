@@ -7,11 +7,12 @@ This repository is a harness for CODEX Skill lifecycle work, centered on Goal Co
 - `goals/completed/codex-skill-optimization/` is the completed umbrella goal for the delivered CODEX Skill optimization effort.
 - `goals/completed/goal-state-index/` is the completed first bounded subgoal for central STATE / REGISTRY / reconciler design.
 - `goals/completed/global-goal-queue-scheduling/` is the completed deterministic priority/dependency queue model.
+- `goals/completed/multi-repo-goal-onboarding/` is the completed explicit dry-run/apply onboarding, reporting, visibility-verification, and LLM-efficiency flow.
 - `docs/design.md` describes the central Goal State Index architecture.
 - `docs/references/` stores reference inputs for future skill and lifecycle design.
 - `schemas/` contains draft STATE and REGISTRY schema notes.
 - `fixtures/` is reserved for synthetic goal roots used by reconciler tests.
-- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, and Goal queue query.
+- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, Goal queue query, atomic output helper, and explicit multi-repo onboarding command.
 - `.omo/evidence/` contains independent review reports for aggregator readiness.
 
 Goal Contract, PLAN, and EVIDENCE files are the authoritative source. A generated central STATE must be treated as a derived index or dashboard only.
@@ -33,6 +34,8 @@ Setup and validation:
 - `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs\global\STATE.json`
 - `.\.venv\Scripts\python -m goal_lifecycle.run --registry registry/REGISTRY.json --out outputs --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --global-out outputs\global --json`
 - `.\.venv\Scripts\python -m goal_lifecycle.queue --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --json`
+- `.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --json`
+- `.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --apply --json`
 
 Useful read-only checks:
 

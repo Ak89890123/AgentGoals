@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass
+from datetime import date
 from pathlib import Path
 from typing import Sequence
 
@@ -37,6 +38,7 @@ def run_pipeline(
     out_dir: Path,
     global_registry_path: Path | None = None,
     global_out_dir: Path | None = None,
+    evaluation_date: date | None = None,
 ) -> RunSummary:
     stages: list[StageResult] = []
     local_state_path = out_dir / "STATE.json"
@@ -45,7 +47,10 @@ def run_pipeline(
 
     try:
         ensure_output_allowed(out_dir, "out")
-        local_entries = reconcile(registry_path, out_dir)
+        if evaluation_date is None:
+            local_entries = reconcile(registry_path, out_dir)
+        else:
+            local_entries = reconcile(registry_path, out_dir, evaluation_date=evaluation_date)
         stages.append(result_for_entries("reconcile", local_state_path, local_entries))
     except Exception as exc:
         stages.append(failed_result("reconcile", local_state_path, exc))
@@ -188,6 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", type=Path, default=Path("outputs"))
     parser.add_argument("--global-registry", type=Path)
     parser.add_argument("--global-out", type=Path)
+    parser.add_argument("--evaluation-date", type=date.fromisoformat)
     parser.add_argument("--json", action="store_true", dest="json_output")
     return parser
 
@@ -199,6 +205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         out_dir=args.out,
         global_registry_path=args.global_registry,
         global_out_dir=args.global_out,
+        evaluation_date=args.evaluation_date,
     )
     if args.json_output:
         print(json.dumps(summary.to_dict(), ensure_ascii=False))

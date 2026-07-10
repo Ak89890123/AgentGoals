@@ -10,6 +10,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from goal_lifecycle.health import disabled_health
+from goal_lifecycle.io import atomic_write_text
 from goal_lifecycle.reconcile import StateEntry
 from goal_lifecycle.render import render_state_markdown
 from goal_lifecycle.scheduling import apply_scheduling, normalize_scheduling
@@ -136,6 +138,7 @@ def entry_from_payload(item: dict[str, Any], root: GlobalRegistryRoot) -> StateE
         completed=item["completed"],
         review=item["review"],
         evidence=item["evidence"],
+        health=item.get("health", disabled_health()),
         scheduling=scheduling,
         next_action=item["next_action"],
         blocked_reason=item["blocked_reason"],
@@ -198,6 +201,7 @@ def aggregate_issue_entry(
         completed=None,
         review={"required": False, "verdict": None},
         evidence={"status": None},
+        health=disabled_health(),
         scheduling=normalize_scheduling(None, root.id)[0],
         next_action=None,
         blocked_reason=reason,
@@ -215,11 +219,11 @@ def write_outputs(entries: list[StateEntry], out_dir: Path, queue: dict[str, Any
         "queue": queue,
         "entries": [asdict(entry) for entry in entries],
     }
-    (out_dir / "STATE.json").write_text(
+    atomic_write_text(
+        out_dir / "STATE.json",
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
     )
-    (out_dir / "STATE.md").write_text(render_state_markdown(entries), encoding="utf-8")
+    atomic_write_text(out_dir / "STATE.md", render_state_markdown(entries))
 
 
 def validate_instance(instance: dict[str, Any], schema_path: Path) -> None:

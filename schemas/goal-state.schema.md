@@ -40,6 +40,19 @@ review:
   verdict: pending | PASS | FAIL | NEEDS_EVIDENCE
 evidence:
   status: pending | partial | complete | null
+health:                             # present in newly generated STATE; optional for legacy version-2 input
+  policy_version: 1 | null
+  status: disabled | healthy | issues
+  evaluated_on: YYYY-MM-DD | null
+  last_activity: YYYY-MM-DD | null
+  findings:
+    - code: health issue code
+      rule: deterministic rule name
+      severity: info | warning | error
+      field: source field name
+      date: observed value | null
+      age_days: integer | null
+      threshold_days: integer | null
 scheduling:
   priority: 0..100
   depends_on: [<root-id>/<goal-id>]
@@ -63,6 +76,13 @@ issues:
   - dependency_missing
   - dependency_cycle
   - duplicate_goal_key
+  - health_stale
+  - health_date_missing
+  - health_date_invalid
+  - health_date_future
+  - health_date_order
+  - health_completion_inconsistent
+  - health_evidence_incomplete
 ```
 
 ## Views
@@ -76,3 +96,4 @@ issues:
 - `next_goal`: first runnable or already in-progress Goal.
 - `next_planned_goal`: first open Goal even when it still needs acceptance or review.
 - Contract `scheduling.priority` and `scheduling.depends_on` are source metadata; queue positions are always derived.
+- Health findings are opt-in, derived, and report-only; older version-2 STATE without `health` remains valid.

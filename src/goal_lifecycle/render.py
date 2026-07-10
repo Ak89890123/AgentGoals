@@ -13,6 +13,7 @@ class StateLike(Protocol):
     goal_key: str
     review: dict
     evidence: dict
+    health: dict
     scheduling: dict
     issues: list[str]
 
@@ -50,6 +51,19 @@ def render_state_markdown(entries: Sequence[StateLike]) -> str:
     append_issue_group(lines, "Waiting Review", entries, "review_pending")
     append_issue_group(lines, "Evidence Incomplete", entries, "evidence_incomplete")
     append_issue_group(lines, "Stale Entries", entries, "stale")
+    health_entries = [entry for entry in entries if entry.health.get("findings")]
+    if health_entries:
+        lines.extend(["", "## Health Issues", ""])
+        for entry in health_entries:
+            for finding in entry.health["findings"]:
+                details = [finding["rule"], finding["severity"]]
+                if finding["date"] is not None:
+                    details.append(f"date={finding['date']}")
+                if finding["age_days"] is not None:
+                    details.append(f"age={finding['age_days']}d")
+                if finding["threshold_days"] is not None:
+                    details.append(f"threshold={finding['threshold_days']}d")
+                lines.append(f"- `{entry.id}` `{finding['code']}`: {', '.join(details)}")
     append_issue_group(lines, "Folder Mismatches", entries, "status_folder_mismatch")
     append_issue_group(lines, "Parse Errors", entries, "parse_error")
 
@@ -58,6 +72,7 @@ def render_state_markdown(entries: Sequence[StateLike]) -> str:
         issues = ", ".join(f"`{issue}`" for issue in entry.issues) if entry.issues else "none"
         review_verdict = entry.review.get("verdict")
         evidence_status = entry.evidence.get("status")
+        health_status = entry.health.get("status")
         lines.extend(
             [
                 f"### {entry.title}",
@@ -71,6 +86,7 @@ def render_state_markdown(entries: Sequence[StateLike]) -> str:
                 f"- Queue position: `{entry.scheduling['queue_position']}`",
                 f"- Review: `{review_verdict}`",
                 f"- Evidence: `{evidence_status}`",
+                f"- Health: `{health_status}`",
                 f"- Issues: {issues}",
                 "",
             ]

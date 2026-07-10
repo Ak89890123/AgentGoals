@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.goal-lifecycle/schemas/onboarding-result.schema.json",
+  "title": "Goal Lifecycle Onboarding Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "outcome",
+    "exit_code",
+    "mode",
+    "target_repo",
+    "root_id",
+    "registered",
+    "visibility_verified",
+    "stages",
+    "proposal",
+    "resume",
+    "metrics",
+    "planned_actions",
+    "artifacts",
+    "directories",
+    "preserved_files",
+    "message"
+  ],
+  "properties": {
+    "version": { "const": 1 },
+    "outcome": {
+      "enum": [
+        "dry_run_ready",
+        "conflict",
+        "local_failed",
+        "registration_required",
+        "global_failed",
+        "global_issues",
+        "visibility_verified"
+      ]
+    },
+    "exit_code": { "enum": [0, 1, 2] },
+    "mode": { "enum": ["check", "apply"] },
+    "target_repo": { "type": "string", "minLength": 1 },
+    "root_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "registered": { "type": "boolean" },
+    "visibility_verified": { "type": "boolean" },
+    "stages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stage" }
+    },
+    "proposal": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/global_root" }
+      ]
+    },
+    "resume": { "type": "object" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resume_context_bytes", "semantic_model_calls", "pipeline_invocations"],
+      "properties": {
+        "resume_context_bytes": { "type": "integer", "minimum": 0 },
+        "semantic_model_calls": { "const": 0 },
+        "pipeline_invocations": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "planned_actions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "directories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/directory" }
+    },
+    "preserved_files": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/preserved" }
+    },
+    "message": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "enum": ["dry_run_ready", "visibility_verified"] } } },
+      "then": { "properties": { "exit_code": { "const": 0 } } }
+    },
+    {
+      "if": { "properties": { "outcome": { "enum": ["registration_required", "global_issues"] } } },
+      "then": { "properties": { "exit_code": { "const": 2 } } }
+    },
+    {
+      "if": { "properties": { "outcome": { "enum": ["conflict", "local_failed", "global_failed"] } } },
+      "then": { "properties": { "exit_code": { "const": 1 } } }
+    }
+  ],
+  "$defs": {
+    "global_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "repo_root", "goal_root", "state_path", "scope", "project", "active", "added", "last_seen"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "label": { "type": "string", "minLength": 1 },
+        "repo_root": { "type": "string", "minLength": 1 },
+        "goal_root": { "type": "string", "minLength": 1 },
+        "state_path": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["repo", "global", "harness"] },
+        "project": { "type": "string", "minLength": 1 },
+        "active": { "type": "boolean" },
+        "added": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "last_seen": { "type": ["string", "null"] }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "output_path", "entry_count", "issue_count", "message"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["passed", "issues", "failed", "skipped"] },
+        "output_path": { "type": ["string", "null"] },
+        "entry_count": { "type": ["integer", "null"], "minimum": 0 },
+        "issue_count": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "type": ["string", "null"] }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "action", "before_sha256", "after_sha256", "rollback_eligible"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["repo_registry", "derived_local_state", "derived_global_state", "onboarding_report"] },
+        "action": { "enum": ["created", "updated", "unchanged"] },
+        "before_sha256": { "type": ["string", "null"] },
+        "after_sha256": { "type": ["string", "null"] },
+        "rollback_eligible": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "rollback_eligible": { "const": true } }, "required": ["rollback_eligible"] },
+          "then": {
+            "properties": {
+              "action": { "const": "created" },
+              "before_sha256": { "type": "null" },
+              "after_sha256": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["repo_registry", "derived_local_state", "derived_global_state"] }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "action": { "enum": ["updated", "unchanged"] } }, "required": ["action"] },
+          "then": { "properties": { "rollback_eligible": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "onboarding_report" } }, "required": ["kind"] },
+          "then": { "properties": { "rollback_eligible": { "const": false } } }
+        }
+      ]
+    },
+    "preserved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "before_sha256", "after_sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "before_sha256": { "type": "string", "minLength": 1 },
+        "after_sha256": { "type": "string", "minLength": 1 }
+      }
+    },
+    "directory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "action"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "action": { "enum": ["created", "existing"] }
+      }
+    }
+  }
+}
