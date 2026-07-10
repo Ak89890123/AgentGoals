@@ -2,12 +2,14 @@
 
 ## Decision
 
-Use a federated STATE topology:
+Use a read-only federated STATE topology as the current production model:
 
 - each repository generates its own derived STATE from its local Goal Contract files;
 - a global `.codex` registry records known repo STATE locations and goal roots;
 - central views are rebuilt from registered repo outputs, not from whole-disk scans;
 - Goal Contract, PLAN, and EVIDENCE files remain the source of truth.
+
+Status: this model is the current approved production/operator topology for Goal Lifecycle STATE. It is still read-only: it does not approve writers, watchers, hooks, daemons, scheduled tasks, source goal mutation, or additional global `.codex` writes.
 
 ## Why This Shape
 
@@ -15,7 +17,7 @@ This keeps source ownership local while still allowing a global operator dashboa
 
 Repo-local STATE gives each project a fast, reviewable view of its own lifecycle. The global `.codex` registry acts as an allowlist and aggregation map, not as write authority over repo goals.
 
-## Proposed Layout
+## Current Layout
 
 Repo-local:
 
@@ -35,16 +37,14 @@ Repo-local:
     STATE.md
 ```
 
-Global `.codex` candidate:
+Global `.codex` registry:
 
 ```text
 C:/Users/jimmy0302/.codex/goal-lifecycle/
   REGISTRY.json
-  STATE.json
-  STATE.md
 ```
 
-The global files above are not created by this step. Creating them requires a separate global mutation proposal, independent review, explicit approval, patch, and verification.
+The reviewed global registry file exists at `C:/Users/jimmy0302/.codex/goal-lifecycle/REGISTRY.json`. Global aggregate STATE output is generated into caller-selected output directories, such as `outputs/global`, and is not written under `.codex` by the current read-only model.
 
 ## Registry Semantics
 
@@ -96,9 +96,11 @@ Not allowed without separate approval:
 - auto-editing repo Goal Contract, PLAN, or EVIDENCE files;
 - scanning outside registered roots or registered STATE paths.
 
-## Open Questions
+## Settled Current Choices
 
-- Exact global `.codex` path name: `goal-lifecycle`, `goals`, or another stable directory.
-- Whether global registry should store both `goal_root` and `state_path`, or infer one from the other.
-- Whether repo-local generated STATE should remain ignored everywhere or be committed in selected repos.
-- Whether the global aggregate should include completed goals by default or only active and review-pending goals.
+- Current global registry path: `C:/Users/jimmy0302/.codex/goal-lifecycle/REGISTRY.json`.
+- Current registry shape stores explicit `repo_root`, `goal_root`, and `state_path`.
+- Current repo-local generated STATE remains derived output and is ignored in this repo.
+- Current aggregate includes the entries present in each registered repo STATE, including completed goals.
+
+Future changes to these choices require a new proposal, independent review, explicit approval, patch, and verification if they touch global `.codex`, RTK, hooks, routing, memory, skills, or always-on workflow behavior.
