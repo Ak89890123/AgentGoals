@@ -28,7 +28,7 @@ The first bounded subgoal is the central Goal State Index:
 
 The global `goal-preflight` skill patch has already passed proposal, independent review, explicit approval, patch, and verification. The read-only lifecycle harness has also passed production-readiness review for `production_read_only` operator use.
 
-The selected production topology is federated: each repo generates its own derived STATE, and the reviewed central global `.codex` registry aggregates registered repo STATE outputs.
+The current production model is read-only and federated: each repo generates its own derived STATE, and the reviewed central global `.codex` registry aggregates registered repo STATE outputs. This is the current operator model, not a writer, watcher, or background automation approval.
 
 The global registry patch is complete at `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`. Additional global `.codex` writes still require a separate proposal, independent review, explicit approval, patch, and verification.
 
