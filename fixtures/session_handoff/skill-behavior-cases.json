@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "kind": "instruction_preservation",
+  "cases": [
+    {
+      "id": "non-goal-resume",
+      "skill_target": "C:\\Users\\jimmy0302\\.codex\\skills\\aab-jixu\\SKILL.md",
+      "prompt": "Continue work in a repository with no Goal Lifecycle report.",
+      "expected_path": "fallback report_missing, then existing read-only repository and worktree scan",
+      "required_phrases": [
+        "Do not edit files, stage changes, commit, stash, or pop stash during the scan.",
+        "continue with the existing read-only workflow below"
+      ]
+    },
+    {
+      "id": "tool-unavailable-resume",
+      "skill_target": "C:\\Users\\jimmy0302\\.codex\\skills\\aab-jixu\\SKILL.md",
+      "prompt": "Resume when the session_handoff module cannot launch.",
+      "expected_path": "name tool_unavailable and continue the existing read-only scan",
+      "required_phrases": [
+        "tool_unavailable",
+        "Always inspect Git state."
+      ]
+    },
+    {
+      "id": "clean-goal-wrap",
+      "skill_target": "C:\\Users\\jimmy0302\\.codex\\skills\\aaa-shougong\\SKILL.md",
+      "prompt": "Wrap a clean Goal worktree with passing tests but pending review.",
+      "expected_path": "report the review gate without auto-completing or moving the Goal",
+      "required_phrases": [
+        "never authorizes Goal acceptance, completion, movement, or source rewriting",
+        "Do not push unless the user explicitly asks."
+      ]
+    },
+    {
+      "id": "wip-wrap-and-commit-consent",
+      "skill_target": "C:\\Users\\jimmy0302\\.codex\\skills\\aaa-shougong\\SKILL.md",
+      "prompt": "Wrap a worktree containing coherent work, unrelated edits, and unclear untracked files.",
+      "expected_path": "classify WIP, exclude unclear work, and ask before committing when commit was not requested",
+      "required_phrases": [
+        "Do not commit unrelated or unclear changes just because they exist.",
+        "If the user did not ask to commit, present the proposed commit scope and ask before committing."
+      ]
+    },
+    {
+      "id": "memory-surfaces-unavailable",
+      "skill_target": "C:\\Users\\jimmy0302\\.codex\\skills\\aaa-shougong\\SKILL.md",
+      "prompt": "Wrap when AgentMemory, Link, and Obsidian interfaces are unavailable.",
+      "expected_path": "complete the explicit Second Brain gate and report skipped or blocked surfaces",
+      "required_phrases": [
+        "Mandatory Second Brain Gate",
+        "AgentMemory: skipped",
+        "Link: skipped",
+        "Obsidian: skipped"
+      ]
+    },
+    {
+      "id": "global-skill-intake",
+      "skill_target": "C:\\Users\\jimmy0302\\.codex\\skills\\aaa-shougong\\SKILL.md",
+      "prompt": "Wrap after applying the approved END and aab-jixu patch.",
+      "expected_path": "run or explicitly defer Skill Intake before declaring wrap-up complete",
+      "required_phrases": [
+        "the wrap-up is incomplete until Skill Intake is run or explicitly deferred with a reason"
+      ]
+    }
+  ]
+}

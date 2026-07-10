@@ -150,6 +150,18 @@ Use `--json` for a versioned compact summary containing stage status, output pat
 
 The orchestrator rejects `--out` and configured global output paths under the user's global `.codex` directory.
 
+## Session Handoff
+
+Validate a fresh onboarding report and matching global STATE into compact close/resume context:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.session_handoff `
+  --report outputs\ONBOARDING.json `
+  --state outputs\global\STATE.json
+```
+
+Exit code `0` returns a versioned fast-path focus with lifecycle, review, evidence, health, source-path, and exact-gate fields. Exit code `2` returns a named fallback reason and preserves the existing read-only repository scan. The caller must still confirm source Contract frontmatter and inspect Git state. See `docs/session-handoff.md`.
+
 ## Non-goals
 
 - Do not make additional global `.codex` edits without a new proposal, independent review, explicit approval, patch, and verification.
@@ -169,6 +181,7 @@ The orchestrator rejects `--out` and configured global output paths under the us
 - `goals/completed/production-state-location/`: production STATE topology decision and global registry patch evidence.
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
+- `docs/session-handoff.md`: deterministic session close/resume protocol and fallback rules.
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
 - `goals/completed/deterministic-lifecycle-orchestration/`: completed implementation goal for the deterministic single-command operator flow.

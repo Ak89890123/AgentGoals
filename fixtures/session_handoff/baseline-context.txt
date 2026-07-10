@@ -1,0 +1,61 @@
+SKILL: aab-jixu baseline instructions loaded.
+
+GIT CONTEXT
+repository=C:/fixture/repo
+branch=main
+worktree=main
+status:
+ M README.md
+ M goals/active/focus/PLAN.md
+?? notes/session-output.txt
+recent commits:
+abc1234 Finish deterministic onboarding
+def5678 Add global queue
+stash: none
+branches: main
+
+AGENTS CONTEXT
+The repository uses Goal Contract, PLAN, and EVIDENCE as authoritative lifecycle sources. Generated STATE is derived. Inspect all repository instructions before choosing the next task. Run the complete test suite before claiming completion. Do not edit global Skills, hooks, routing, memory, or configuration without proposal, review, approval, patch, and verification. Preserve unrelated worktree changes. Use registered roots only. Do not scan the whole disk. Session resumption must check Git, README, project instructions, documentation, other worktrees, and durable context surfaces when available.
+
+README CONTEXT
+This fixture repository contains a read-only Goal Lifecycle harness. The current project status says onboarding and health policy are complete. The next planned project is Goal Session Handoff Integration. Operators can reconcile local STATE, aggregate global STATE, query queue position, and onboard one explicit repository. The current handoff notes list completed work, pending WIP, validation commands, source paths, and several future projects. STATE must never replace Contract, PLAN, or EVIDENCE. Global changes require independent review and explicit approval.
+
+CONTRACT CONTEXT
+id: focus
+status: in_progress
+owner: engineering
+review.required: true
+review.verdict: pending
+goal: integrate END and resume with deterministic Goal Lifecycle context
+success: preserve Git and memory gates, use a compact queue fast path, fall back safely, and reduce context by at least fifty percent
+scope: protocol, fixtures, evaluation, exact two-Skill patch, independent review, approval, smoke verification
+non-goals: hooks, services, automatic status changes, registry mutation, unrelated Skills
+
+PLAN CONTEXT
+1. Establish baseline.
+2. Define protocol.
+3. Add fallback cases.
+4. Draft exact patch.
+5. Review independently.
+6. Ask for exact approval.
+7. Apply and verify.
+current progress: implementation before review
+open decision: reviewer verdict and exact patch approval
+
+EVIDENCE CONTEXT
+queue position: 1
+dependencies: satisfied
+schema validation: passed
+tests: passed
+review: pending
+context measurement: pending
+global Skill patch: not applied
+
+DOC SEARCH RESULTS
+README.md: next planned Goal is session handoff integration
+docs/usage.md: next_goal is runnable or in-progress
+docs/onboarding.md: compact resume exposes current queue facts
+AGENTS.md: do not mutate global Skills before review and approval
+
+INTERPRETATION REQUIRED
+The agent must compare Git WIP, the three Goal source files, README status, repository instructions, documentation search results, durable context availability, queue facts, and reviewer state before selecting the current Goal, exact gate, and next planned work.

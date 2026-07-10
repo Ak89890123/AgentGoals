@@ -12,7 +12,7 @@ This repository is a harness for CODEX Skill lifecycle work, centered on Goal Co
 - `docs/references/` stores reference inputs for future skill and lifecycle design.
 - `schemas/` contains draft STATE and REGISTRY schema notes.
 - `fixtures/` is reserved for synthetic goal roots used by reconciler tests.
-- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, Goal queue query, atomic output helper, and explicit multi-repo onboarding command.
+- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, Goal queue query, atomic output helper, explicit multi-repo onboarding command, and versioned session-handoff assessment/evaluation commands.
 - `.omo/evidence/` contains independent review reports for aggregator readiness.
 
 Goal Contract, PLAN, and EVIDENCE files are the authoritative source. A generated central STATE must be treated as a derived index or dashboard only.
@@ -36,6 +36,8 @@ Setup and validation:
 - `.\.venv\Scripts\python -m goal_lifecycle.queue --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --json`
 - `.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --json`
 - `.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --apply --json`
+- `.\.venv\Scripts\python -m goal_lifecycle.session_handoff --report outputs\ONBOARDING.json --state outputs\global\STATE.json`
+- `.\.venv\Scripts\python -m goal_lifecycle.session_eval --help`
 
 Useful read-only checks:
 

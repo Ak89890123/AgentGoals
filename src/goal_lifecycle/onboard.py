@@ -440,9 +440,13 @@ def build_resume(paths: OnboardingPaths, visibility_verified: bool) -> dict[str,
         return {}
     payload = load_json(state_path)
     queue = payload.get("queue", {})
+    focus_key = queue.get("next_goal") or queue.get("next_planned_goal")
+    focus_entry = next((item for item in payload.get("entries", []) if item.get("goal_key") == focus_key), None)
     return {
+        "version": 1,
         "source": "global" if visibility_verified else "local",
         "visibility_verified": visibility_verified,
+        "focus_root_id": focus_entry.get("root_id") if focus_entry else None,
         "next_goal": queue.get("next_goal"),
         "next_planned_goal": queue.get("next_planned_goal"),
         "open_count": queue.get("open_count", 0),

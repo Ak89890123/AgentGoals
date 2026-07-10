@@ -412,10 +412,10 @@ def test_registered_resume_context_is_less_than_half_of_identical_source_scenari
     assert resume_bytes <= source_bytes * 0.5
     assert source_bytes == 618
     assert hashlib.sha256(source_payload).hexdigest() == "84b1cb74bbda64d3a71934cdc9f005105863911a4cd9b246cf99155af423e7e3"
-    assert resume_bytes == 179
+    assert resume_bytes == 229
     assert hashlib.sha256(
         json.dumps(result.resume, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest() == "4fb7f03f98371b53969d9b6e4acf704e4134cbdafabee6262c1f67a9cb0c7107"
+    ).hexdigest() == "161f7f105f7d25727f6f5b60b892f215cffc8c8c9471288f0aa44f808a150705"
     assert result.registered is True
     assert result.resume["source"] == "global"
     assert result.metrics["semantic_model_calls"] == 0
@@ -528,6 +528,26 @@ def test_schema_rejects_contradictory_rollback_eligible_artifact() -> None:
 
     with pytest.raises(ValueError, match="rollback_eligible|created"):
         onboard_module.validate_result(payload)
+
+
+def test_schema_rejects_visibility_and_outcome_contradictions() -> None:
+    repo = make_repo("onboard-schema-visibility-contradiction")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    state_path = repo / "outputs" / "goal-lifecycle" / "STATE.json"
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [global_root(repo, "registered-repo", state_path)])
+    result = onboard_repository(repo, apply=True, global_registry_path=global_registry)
+
+    resume_contradiction = result.to_dict()
+    resume_contradiction["resume"]["visibility_verified"] = False
+    with pytest.raises(ValueError, match="visibility_verified|True was expected"):
+        onboard_module.validate_result(resume_contradiction)
+
+    outcome_contradiction = result.to_dict()
+    outcome_contradiction["outcome"] = "global_failed"
+    outcome_contradiction["exit_code"] = 1
+    with pytest.raises(ValueError, match="visibility_verified|False was expected"):
+        onboard_module.validate_result(outcome_contradiction)
 
 
 def test_custom_path_artifacts_are_not_rollback_eligible() -> None:
