@@ -15,9 +15,9 @@ Build a small read-only harness for Goal Contract lifecycle tracking and use it 
 
 The umbrella effort is tracked at:
 
-- `goals/active/codex-skill-optimization/CONTRACT.md`
-- `goals/active/codex-skill-optimization/PLAN.md`
-- `goals/active/codex-skill-optimization/EVIDENCE.md`
+- `goals/completed/codex-skill-optimization/CONTRACT.md`
+- `goals/completed/codex-skill-optimization/PLAN.md`
+- `goals/completed/codex-skill-optimization/EVIDENCE.md`
 
 The first bounded subgoal is the central Goal State Index:
 
@@ -89,9 +89,9 @@ The aggregator reads only registered absolute `state_path` files and writes only
 ## Key Files
 
 - `HANDOFF.md`: conversation handoff and settled decisions.
-- `goals/active/codex-skill-optimization/CONTRACT.md`: umbrella contract for the full CODEX Skill optimization effort.
-- `goals/active/codex-skill-optimization/PLAN.md`: umbrella execution plan.
-- `goals/active/codex-skill-optimization/EVIDENCE.md`: umbrella verification/evidence log.
+- `goals/completed/codex-skill-optimization/CONTRACT.md`: umbrella contract for the full CODEX Skill optimization effort.
+- `goals/completed/codex-skill-optimization/PLAN.md`: umbrella execution plan.
+- `goals/completed/codex-skill-optimization/EVIDENCE.md`: umbrella verification/evidence log.
 - `goals/completed/goal-state-index/CONTRACT.md`: completed project contract.
 - `goals/completed/goal-state-index/PLAN.md`: completed execution plan.
 - `goals/completed/goal-state-index/EVIDENCE.md`: completed verification/evidence log.
