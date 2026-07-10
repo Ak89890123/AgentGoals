@@ -237,3 +237,37 @@ def test_aggregate_merges_multiple_active_roots_with_duplicate_goal_ids() -> Non
     assert [entry.id for entry in entries] == ["shared-goal", "shared-goal"]
     assert len({entry.contract_path for entry in entries}) == 2
     assert all(Path(entry.contract_path).is_absolute() for entry in entries)
+
+
+def test_aggregate_resolves_cross_repo_dependencies() -> None:
+    workspace_one = make_workspace("aggregate-dependency-one")
+    workspace_two = make_workspace("aggregate-dependency-two")
+    write_goal(workspace_one, "completed", "foundation", "completed", evidence_status="complete", review_verdict="PASS")
+    write_goal(
+        workspace_two,
+        "active",
+        "dependent",
+        "ready",
+        evidence_status="complete",
+        review_verdict="PASS",
+        depends_on=["repo-one/foundation"],
+    )
+    for workspace in (workspace_one, workspace_two):
+        repo_registry = workspace / "registry" / "REGISTRY.json"
+        write_registry(repo_registry, workspace / "goals")
+        reconcile(repo_registry, workspace / "outputs")
+    global_registry = workspace_one / "global" / "REGISTRY.json"
+    write_global_registry(
+        global_registry,
+        [
+            global_root(workspace_one, "repo-one", workspace_one / "outputs" / "STATE.json"),
+            global_root(workspace_two, "repo-two", workspace_two / "outputs" / "STATE.json"),
+        ],
+    )
+
+    entries = aggregate(global_registry, workspace_one / "global-out")
+    by_key = {entry.goal_key: entry for entry in entries}
+
+    assert by_key["repo-two/dependent"].scheduling["depends_on"] == ["repo-one/foundation"]
+    assert by_key["repo-two/dependent"].scheduling["status"] == "runnable"
+    assert by_key["repo-two/dependent"].scheduling["queue_position"] == 1

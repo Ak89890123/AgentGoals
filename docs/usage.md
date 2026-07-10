@@ -19,10 +19,11 @@ goals/<status>/<goal-id>/
 
 1. Edit Goal Contract, Plan, and Evidence files directly.
 2. Keep machine-readable status values in lowercase snake_case.
-3. Register only intentional goal roots in `registry/REGISTRY.json`.
-4. Run reconcile.
-5. Run schema validation.
-6. Treat STATE issues as review prompts, not automatic source-file changes.
+3. Put adjustable priority and hard dependencies in Contract `scheduling` metadata.
+4. Register only intentional goal roots in `registry/REGISTRY.json`.
+5. Run reconcile.
+6. Run schema validation.
+7. Treat STATE issues as review prompts, not automatic source-file changes.
 
 PowerShell:
 
@@ -90,6 +91,52 @@ Exit codes:
 The orchestrator calls existing Python APIs directly. It does not start child Codex sessions, invoke an LLM, mutate Goal source files, move goals, or run in the background.
 It also canonicalizes output paths and rejects local or global output directories under the user's global `.codex` directory.
 
+## Deterministic Goal Queue
+
+Contract source metadata:
+
+```yaml
+scheduling:
+  priority: 80
+  depends_on:
+    - prerequisite-goal
+    - other-root/cross-repo-prerequisite
+```
+
+- Priority is an integer from `0` through `100`; larger values sort first among peers.
+- Missing scheduling metadata defaults to priority `50` with no dependencies.
+- Bare dependency IDs resolve within the same registry root.
+- Canonical `<root-id>/<goal-id>` dependencies can resolve across registered repos during global aggregation.
+- Dependencies always win over priority.
+- `queue_position`, scheduling status, unmet dependencies, and queue summaries are derived STATE fields.
+
+Query a generated STATE:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.queue --state outputs\STATE.json
+```
+
+Query registered repo STATE files directly without writing aggregate output:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.queue `
+  --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --json
+```
+
+Scheduling status values:
+
+- `runnable`: ready and all dependencies are complete;
+- `in_progress`: already running and dependency-safe;
+- `dependency_blocked`: one or more dependencies are incomplete or unavailable;
+- `not_ready`: draft or review-pending with no unmet dependency;
+- `blocked`: lifecycle status is blocked;
+- `done`: completed or cancelled;
+- `invalid`: malformed scheduling, missing same-scope dependency, dependency cycle, or invalid source entry.
+
+`next_goal` is the first runnable or in-progress Goal. `next_planned_goal` is the first open Goal even if it still needs acceptance or review. Agents may change source `priority` after an explicit user request, then reconcile; they must never edit derived queue fields directly.
+Invalid Goals are excluded from queue positions and returned separately with their issue codes and Contract paths.
+
 ## Issue Interpretation
 
 - `missing`: registered root or expected goal path is missing.
@@ -100,6 +147,10 @@ It also canonicalizes output paths and rejects local or global output directorie
 - `stale`: contract freshness cannot be confirmed because `updated` is missing.
 - `review_pending`: contract or evidence says review is still pending.
 - `evidence_incomplete`: evidence is absent or still partial.
+- `invalid_scheduling`: priority or dependency metadata is malformed.
+- `dependency_missing`: a required dependency cannot be resolved in the applicable registry scope.
+- `dependency_cycle`: dependencies form a cycle and cannot produce a valid execution order.
+- `duplicate_goal_key`: two entries resolve to the same registry-root/Goal namespace and cannot be ordered safely.
 
 ## Production Use Boundary
 
@@ -109,6 +160,7 @@ Allowed now:
 - Generate ignored STATE outputs.
 - Validate registry and STATE JSON.
 - Use STATE as a reviewer/operator dashboard.
+- Query deterministic local or global Goal order without an LLM choosing the sequence.
 - Use issues as prompts for manual edits.
 
 Not allowed without a separate reviewed proposal:
@@ -117,6 +169,7 @@ Not allowed without a separate reviewed proposal:
 - Scanning broad filesystem locations.
 - Running a watcher or background service.
 - Moving active goals to completed automatically.
+- Editing source priority or dependencies from read-only queue commands.
 - Editing global Codex skills, RTK, hooks, routing, config, or memory stores.
 
 ## Adding a Goal Root

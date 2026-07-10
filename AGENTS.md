@@ -6,11 +6,12 @@ This repository is a harness for CODEX Skill lifecycle work, centered on Goal Co
 
 - `goals/completed/codex-skill-optimization/` is the completed umbrella goal for the delivered CODEX Skill optimization effort.
 - `goals/completed/goal-state-index/` is the completed first bounded subgoal for central STATE / REGISTRY / reconciler design.
+- `goals/completed/global-goal-queue-scheduling/` is the completed deterministic priority/dependency queue model.
 - `docs/design.md` describes the central Goal State Index architecture.
 - `docs/references/` stores reference inputs for future skill and lifecycle design.
 - `schemas/` contains draft STATE and REGISTRY schema notes.
 - `fixtures/` is reserved for synthetic goal roots used by reconciler tests.
-- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, and deterministic orchestrator.
+- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, and Goal queue query.
 - `.omo/evidence/` contains independent review reports for aggregator readiness.
 
 Goal Contract, PLAN, and EVIDENCE files are the authoritative source. A generated central STATE must be treated as a derived index or dashboard only.
@@ -31,6 +32,7 @@ Setup and validation:
 - `.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global`
 - `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs\global\STATE.json`
 - `.\.venv\Scripts\python -m goal_lifecycle.run --registry registry/REGISTRY.json --out outputs --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --global-out outputs\global --json`
+- `.\.venv\Scripts\python -m goal_lifecycle.queue --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --json`
 
 Useful read-only checks:
 
@@ -44,6 +46,7 @@ Useful read-only checks:
 - Keep YAML frontmatter machine-readable; keep prose in the body.
 - Use lowercase snake_case for machine status values such as `review_pending`, `in_progress`, and `completed`.
 - Keep goal IDs stable and kebab-case.
+- Put hard ordering in Contract `scheduling.depends_on` and adjustable importance in `scheduling.priority`; never edit derived queue positions.
 - Do not duplicate frontmatter metadata in body sections.
 - Prefer concise, file-backed guidance over generic process text.
 - Put reusable Python code under `src/goal_lifecycle/` and tests under `tests/`.
@@ -88,8 +91,9 @@ Global aggregation validation path:
 7. Require aggregate entry source paths to stay under registered `goal_root`.
 8. Emit derived global STATE outputs under the requested output directory.
 9. Report missing, malformed, BOM-encoded, or out-of-scope repo STATE as aggregate issues without source mutation.
+10. Recompute cross-repo scheduling from canonical Goal keys; do not trust repo-local queue positions as global truth.
 
-Fixtures should cover active draft, review pending, in progress, blocked, completed, status/folder mismatch, missing evidence, parse error cases, missing/malformed repo STATE, inactive global roots, relative path rejection, path escape rejection, UTF-8 BOM handling, and multi-root duplicate goal IDs.
+Fixtures should cover active draft, review pending, in progress, blocked, completed, status/folder mismatch, missing evidence, parse errors, scheduling defaults, priority ties, dependency blocking, missing dependencies, dependency cycles, cross-repo dependencies, missing/malformed repo STATE, inactive global roots, relative path rejection, path escape rejection, UTF-8 BOM handling, and multi-root duplicate goal IDs.
 
 ## Commit & Review Guidelines
 

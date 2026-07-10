@@ -20,10 +20,20 @@ def write_goal(
     write_plan: bool = True,
     write_evidence: bool = True,
     updated: str | None = "2026-07-07",
+    priority: int | None = None,
+    depends_on: list[str] | None = None,
 ) -> None:
     goal_dir = root / "goals" / folder / goal_id
     goal_dir.mkdir(parents=True)
     updated_line = f"updated: {updated}\n" if updated is not None else ""
+    scheduling_lines = ""
+    if priority is not None or depends_on is not None:
+        scheduling_lines = f"scheduling:\n  priority: {priority if priority is not None else 50}\n  depends_on:"
+        if depends_on:
+            scheduling_lines += "\n" + "\n".join(f"    - {dependency}" for dependency in depends_on)
+        else:
+            scheduling_lines += " []"
+        scheduling_lines += "\n"
     (goal_dir / "CONTRACT.md").write_text(
         f"""---
 type: goal-contract
@@ -39,7 +49,7 @@ project: test
 review:
   required: true
   verdict: {review_verdict}
----
+{scheduling_lines}---
 
 # Goal Contract
 """,
@@ -247,3 +257,156 @@ def test_rendered_state_groups_actionable_views() -> None:
     assert "## Evidence Incomplete" in rendered
     assert "## Folder Mismatches" in rendered
     assert "## Parse Errors" in rendered
+
+
+def test_reconcile_defaults_scheduling_and_writes_queue_summary() -> None:
+    workspace = make_workspace("scheduling-default")
+    write_goal(workspace, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+    payload = __import__("json").loads((workspace / "outputs" / "STATE.json").read_text(encoding="utf-8"))
+
+    assert entries[0].goal_key == "test-root/ready-goal"
+    assert entries[0].scheduling == {
+        "priority": 50,
+        "depends_on": [],
+        "status": "runnable",
+        "queue_position": 1,
+        "unmet_dependencies": [],
+    }
+    assert payload["version"] == 2
+    assert payload["queue"]["next_goal"] == "test-root/ready-goal"
+
+
+def test_dependency_order_wins_over_priority() -> None:
+    workspace = make_workspace("dependency-priority")
+    write_goal(workspace, "active", "foundation", "ready", evidence_status="complete", review_verdict="PASS", priority=10)
+    write_goal(
+        workspace,
+        "active",
+        "urgent-dependent",
+        "ready",
+        evidence_status="complete",
+        review_verdict="PASS",
+        priority=100,
+        depends_on=["foundation"],
+    )
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert [entry.id for entry in entries] == ["foundation", "urgent-dependent"]
+    assert entries[0].scheduling["status"] == "runnable"
+    assert entries[1].scheduling["status"] == "dependency_blocked"
+    assert entries[1].scheduling["unmet_dependencies"] == ["test-root/foundation"]
+
+
+def test_priority_orders_independent_ready_goals() -> None:
+    workspace = make_workspace("priority-order")
+    write_goal(workspace, "active", "low", "ready", evidence_status="complete", review_verdict="PASS", priority=10)
+    write_goal(workspace, "active", "high", "ready", evidence_status="complete", review_verdict="PASS", priority=90)
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert [entry.id for entry in entries] == ["high", "low"]
+    assert [entry.scheduling["queue_position"] for entry in entries] == [1, 2]
+
+
+def test_completed_dependency_unlocks_dependent_goal() -> None:
+    workspace = make_workspace("dependency-completed")
+    write_goal(workspace, "completed", "foundation", "completed", evidence_status="complete", review_verdict="PASS")
+    write_goal(
+        workspace,
+        "active",
+        "dependent",
+        "ready",
+        evidence_status="complete",
+        review_verdict="PASS",
+        depends_on=["foundation"],
+    )
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+    by_id = {entry.id: entry for entry in entries}
+
+    assert by_id["foundation"].scheduling["queue_position"] is None
+    assert by_id["dependent"].scheduling["status"] == "runnable"
+    assert by_id["dependent"].scheduling["queue_position"] == 1
+
+
+def test_reconcile_reports_missing_dependency_and_cycle() -> None:
+    missing_workspace = make_workspace("dependency-missing")
+    write_goal(
+        missing_workspace,
+        "active",
+        "missing-dependent",
+        "ready",
+        evidence_status="complete",
+        review_verdict="PASS",
+        depends_on=["not-found"],
+    )
+    missing_registry = missing_workspace / "registry" / "REGISTRY.json"
+    write_registry(missing_registry, missing_workspace / "goals")
+
+    missing_entries = reconcile(missing_registry, missing_workspace / "outputs")
+
+    assert "dependency_missing" in missing_entries[0].issues
+    assert missing_entries[0].scheduling["status"] == "invalid"
+
+    cycle_workspace = make_workspace("dependency-cycle")
+    write_goal(cycle_workspace, "active", "one", "ready", evidence_status="complete", review_verdict="PASS", depends_on=["two"])
+    write_goal(cycle_workspace, "active", "two", "ready", evidence_status="complete", review_verdict="PASS", depends_on=["one"])
+    cycle_registry = cycle_workspace / "registry" / "REGISTRY.json"
+    write_registry(cycle_registry, cycle_workspace / "goals")
+
+    cycle_entries = reconcile(cycle_registry, cycle_workspace / "outputs")
+
+    assert all("dependency_cycle" in entry.issues for entry in cycle_entries)
+    assert all(entry.scheduling["status"] == "invalid" for entry in cycle_entries)
+
+
+def test_invalid_scheduling_and_pending_review_are_not_runnable() -> None:
+    invalid_workspace = make_workspace("scheduling-invalid")
+    write_goal(invalid_workspace, "active", "invalid-priority", "ready", evidence_status="complete", review_verdict="PASS")
+    contract = invalid_workspace / "goals" / "active" / "invalid-priority" / "CONTRACT.md"
+    text = contract.read_text(encoding="utf-8").replace("review:\n", "scheduling:\n  priority: 101\n  depends_on: []\nreview:\n")
+    contract.write_text(text, encoding="utf-8")
+    invalid_registry = invalid_workspace / "registry" / "REGISTRY.json"
+    write_registry(invalid_registry, invalid_workspace / "goals")
+
+    invalid_entry = reconcile(invalid_registry, invalid_workspace / "outputs")[0]
+
+    assert "invalid_scheduling" in invalid_entry.issues
+    assert invalid_entry.scheduling["status"] == "invalid"
+
+    review_workspace = make_workspace("scheduling-review")
+    write_goal(review_workspace, "active", "review-gate", "ready", evidence_status="complete", review_verdict="pending")
+    review_registry = review_workspace / "registry" / "REGISTRY.json"
+    write_registry(review_registry, review_workspace / "goals")
+
+    review_entry = reconcile(review_registry, review_workspace / "outputs")[0]
+
+    assert "review_pending" in review_entry.issues
+    assert review_entry.scheduling["status"] == "not_ready"
+
+
+def test_duplicate_goal_keys_are_invalid_and_unranked() -> None:
+    workspace = make_workspace("scheduling-duplicate")
+    write_goal(workspace, "active", "duplicate", "ready", evidence_status="complete", review_verdict="PASS")
+    write_goal(workspace, "completed", "historical", "completed", evidence_status="complete", review_verdict="PASS")
+    historical = workspace / "goals" / "completed" / "historical" / "CONTRACT.md"
+    historical.write_text(historical.read_text(encoding="utf-8").replace("id: historical", "id: duplicate"), encoding="utf-8")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+
+    entries = reconcile(registry, workspace / "outputs")
+
+    assert all("duplicate_goal_key" in entry.issues for entry in entries)
+    assert all(entry.scheduling["status"] == "invalid" for entry in entries)
+    assert all(entry.scheduling["queue_position"] is None for entry in entries)
