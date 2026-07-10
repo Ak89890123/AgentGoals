@@ -127,6 +127,9 @@
             }
           }
         },
+        "health": {
+          "$ref": "#/$defs/health"
+        },
         "scheduling": {
           "$ref": "#/$defs/scheduling"
         },
@@ -157,8 +160,53 @@
               "invalid_scheduling",
               "dependency_missing",
               "dependency_cycle",
-              "duplicate_goal_key"
+              "duplicate_goal_key",
+              "health_stale",
+              "health_date_missing",
+              "health_date_invalid",
+              "health_date_future",
+              "health_date_order",
+              "health_completion_inconsistent",
+              "health_evidence_incomplete"
             ]
+          }
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_version", "status", "evaluated_on", "last_activity", "findings"],
+      "properties": {
+        "policy_version": {"type": ["integer", "null"]},
+        "status": {"enum": ["disabled", "healthy", "issues"]},
+        "evaluated_on": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "last_activity": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "rule", "severity", "field", "date", "age_days", "threshold_days"],
+            "properties": {
+              "code": {
+                "enum": [
+                  "health_stale",
+                  "health_date_missing",
+                  "health_date_invalid",
+                  "health_date_future",
+                  "health_date_order",
+                  "health_completion_inconsistent",
+                  "health_evidence_incomplete"
+                ]
+              },
+              "rule": {"type": "string", "minLength": 1},
+              "severity": {"enum": ["info", "warning", "error"]},
+              "field": {"type": "string", "minLength": 1},
+              "date": {"type": ["string", "null"]},
+              "age_days": {"type": ["integer", "null"], "minimum": 0},
+              "threshold_days": {"type": ["integer", "null"], "minimum": 0}
+            }
           }
         }
       }

@@ -34,6 +34,8 @@ STATE version 2 adds deterministic scheduling. Goal Contracts may declare `sched
 
 The global registry patch is complete at `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`. Additional global `.codex` writes still require a separate proposal, independent review, explicit approval, patch, and verification.
 
+Multi-repo onboarding is available as an explicit, dry-run-first command. It writes only inside the supplied repository after `--apply`, emits a global-registration proposal instead of applying it, and can verify an already-registered repo in a derived global aggregate. See `docs/onboarding.md`.
+
 ## Python Setup
 
 Use a repo-local virtual environment:
@@ -96,6 +98,14 @@ Query the current global queue directly from registered repo STATE files without
 .\.venv\Scripts\python -m goal_lifecycle.queue `
   --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
   --json
+```
+
+Check or apply onboarding for one explicit repository:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --json
+.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --apply --json
 ```
 
 Source scheduling metadata belongs in Contract frontmatter:

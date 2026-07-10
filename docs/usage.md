@@ -151,6 +151,16 @@ Invalid Goals are excluded from queue positions and returned separately with the
 - `dependency_missing`: a required dependency cannot be resolved in the applicable registry scope.
 - `dependency_cycle`: dependencies form a cycle and cannot produce a valid execution order.
 - `duplicate_goal_key`: two entries resolve to the same registry-root/Goal namespace and cannot be ordered safely.
+- `health_stale`: an enabled health policy threshold was exceeded.
+- `health_date_missing`: a required health-policy date is absent.
+- `health_date_invalid`: a health-policy date is not strict `YYYY-MM-DD`.
+- `health_date_future`: a health-policy date is after the injected UTC evaluation date.
+- `health_date_order`: an activity or completion date precedes `created`.
+- `health_completion_inconsistent`: an active Goal declares a completion date.
+- `health_evidence_incomplete`: a completed Goal does not have complete evidence.
+
+Health policy is opt-in and report-only. See `docs/health-policy.md` for version-1
+defaults, threshold overrides, structured findings, and fixed evaluation dates.
 
 ## Production Use Boundary
 

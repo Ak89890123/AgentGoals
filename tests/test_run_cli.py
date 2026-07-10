@@ -5,6 +5,7 @@ from pathlib import Path
 
 import goal_lifecycle.run as run_module
 from goal_lifecycle.run import main, run_pipeline
+from tests.test_health import enable_health_policy
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 
 
@@ -96,3 +97,30 @@ def test_cli_json_output_has_stable_shape(capsys) -> None:
         "issue_count",
         "message",
     }
+
+
+def test_cli_injects_fixed_health_evaluation_date(capsys) -> None:
+    workspace = make_workspace("run-health-date")
+    write_goal(workspace, "active", "old", "blocked", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+    enable_health_policy(registry)
+    out_dir = workspace / "outputs"
+
+    exit_code = main(
+        [
+            "--registry",
+            str(registry),
+            "--out",
+            str(out_dir),
+            "--evaluation-date",
+            "2026-07-20",
+            "--json",
+        ]
+    )
+    capsys.readouterr()
+    state = json.loads((out_dir / "STATE.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 2
+    assert state["entries"][0]["health"]["evaluated_on"] == "2026-07-20"
+    assert "health_stale" in state["entries"][0]["issues"]

@@ -7,6 +7,15 @@ Machine-readable schema: `schemas/goal-registry.schema.json`.
 ```yaml
 version: 1
 updated: YYYY-MM-DD
+health_policy:                 # optional
+  version: 1
+  enabled: boolean
+  thresholds:                 # optional per-status overrides
+    draft: non-negative integer
+    review_pending: non-negative integer
+    ready: non-negative integer
+    in_progress: non-negative integer
+    blocked: non-negative integer
 roots:
   - id: repo-or-global-id
     label: Human readable label
@@ -24,3 +33,5 @@ roots:
 - Missing roots should be reported, not silently removed.
 - Root removal should require explicit user action.
 - Registry does not grant permission to mutate source files.
+- An absent or disabled health policy preserves legacy reconciliation behavior.
+- Unknown policy versions, fields, statuses, and negative thresholds are rejected.
