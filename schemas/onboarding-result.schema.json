@@ -52,7 +52,7 @@
         { "$ref": "#/$defs/global_root" }
       ]
     },
-    "resume": { "type": "object" },
+    "resume": { "$ref": "#/$defs/resume" },
     "metrics": {
       "type": "object",
       "additionalProperties": false,
@@ -94,9 +94,84 @@
     {
       "if": { "properties": { "outcome": { "enum": ["conflict", "local_failed", "global_failed"] } } },
       "then": { "properties": { "exit_code": { "const": 1 } } }
+    },
+    {
+      "if": { "properties": { "outcome": { "enum": ["visibility_verified", "global_issues"] } } },
+      "then": {
+        "properties": {
+          "registered": { "const": true },
+          "visibility_verified": { "const": true },
+          "resume": {
+            "properties": {
+              "source": { "const": "global" },
+              "visibility_verified": { "const": true }
+            },
+            "required": ["source", "visibility_verified"]
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "visibility_verified": { "const": true } }, "required": ["visibility_verified"] },
+      "then": {
+        "properties": {
+          "registered": { "const": true },
+          "resume": {
+            "properties": {
+              "source": { "const": "global" },
+              "visibility_verified": { "const": true }
+            },
+            "required": ["source", "visibility_verified"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": ["dry_run_ready", "conflict", "local_failed", "registration_required", "global_failed"]
+          }
+        }
+      },
+      "then": { "properties": { "visibility_verified": { "const": false } } }
     }
   ],
   "$defs": {
+    "resume": {
+      "oneOf": [
+        {
+          "type": "object",
+          "maxProperties": 0
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "source",
+            "visibility_verified",
+            "focus_root_id",
+            "next_goal",
+            "next_planned_goal",
+            "open_count",
+            "runnable_count",
+            "invalid_count"
+          ],
+          "properties": {
+            "version": { "const": 1 },
+            "source": { "enum": ["local", "global"] },
+            "visibility_verified": { "type": "boolean" },
+            "focus_root_id": { "type": ["string", "null"] },
+            "next_goal": { "type": ["string", "null"] },
+            "next_planned_goal": { "type": ["string", "null"] },
+            "open_count": { "type": "integer", "minimum": 0 },
+            "runnable_count": { "type": "integer", "minimum": 0 },
+            "invalid_count": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
     "global_root": {
       "type": "object",
       "additionalProperties": false,

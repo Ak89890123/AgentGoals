@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "gate_cases": [
+    {
+      "id": "draft-acceptance",
+      "status": "draft",
+      "review_required": false,
+      "review_verdict": "pending",
+      "expected_gate": "accept_contract"
+    },
+    {
+      "id": "review-pending",
+      "status": "review_pending",
+      "review_required": true,
+      "review_verdict": "pending",
+      "expected_gate": "obtain_review"
+    },
+    {
+      "id": "ready-start",
+      "status": "ready",
+      "review_required": false,
+      "review_verdict": "PASS",
+      "expected_gate": "start_execution"
+    },
+    {
+      "id": "in-progress",
+      "status": "in_progress",
+      "review_required": false,
+      "review_verdict": "PASS",
+      "expected_gate": "continue_execution"
+    },
+    {
+      "id": "in-progress-before-review",
+      "status": "in_progress",
+      "review_required": true,
+      "review_verdict": "pending",
+      "expected_gate": "continue_before_review_gate"
+    },
+    {
+      "id": "blocked",
+      "status": "blocked",
+      "review_required": false,
+      "review_verdict": "PASS",
+      "expected_gate": "resolve_blocker"
+    }
+  ],
+  "fallback_cases": {
+    "missing": "report_missing",
+    "malformed": "report_malformed",
+    "stale": "report_stale",
+    "unregistered": "repository_unregistered",
+    "visibility_unverified": "visibility_unverified",
+    "unsupported": "resume_unsupported",
+    "invalid_queue": "invalid_queue",
+    "state_missing": "state_missing",
+    "state_malformed": "state_malformed",
+    "contradiction": "state_contradiction",
+    "identity_mismatch": "identity_mismatch",
+    "tool_unavailable": "tool_unavailable",
+    "report_contradiction": "report_contradiction"
+  },
+  "onboarding_resume_regression": {
+    "source_context_bytes": 618,
+    "source_sha256": "84b1cb74bbda64d3a71934cdc9f005105863911a4cd9b246cf99155af423e7e3",
+    "resume_context_bytes": 229,
+    "resume_sha256": "161f7f105f7d25727f6f5b60b892f215cffc8c8c9471288f0aa44f808a150705",
+    "maximum_ratio": 0.5,
+    "semantic_model_calls": 0,
+    "pipeline_invocations": 1
+  },
+  "skill_resume_candidate": {
+    "baseline_context_bytes": 39430,
+    "baseline_sha256": "b0219d9b4eb510b4777888d88a5c393f7298636bbc6869df207ffad395dd85cf",
+    "candidate_context_bytes": 10586,
+    "candidate_sha256": "b1f3728999e7f3005e2f0df1af62979fb9876655d82ddd36937f53f6c8bf26ab",
+    "ratio": 0.2685,
+    "reduction_percent": 73.15,
+    "maximum_ratio": 0.5,
+    "semantic_model_calls": 0,
+    "pipeline_invocations": 1,
+    "patch_contexts_valid": true
+  },
+  "immutable_transcript_regression": {
+    "baseline_context_bytes": 3030,
+    "baseline_sha256": "36f3fcf2cddc6e35ff1ab3079cf1d213384c470cf0d46375eee0f9afb9bd2fb0",
+    "candidate_context_bytes": 1130,
+    "candidate_sha256": "fd39c6d47469e2d38b91722fdf4be3f5c8e8f8ecdbe7f48af3c9e4a748dd91a8",
+    "ratio": 0.3729,
+    "reduction_percent": 62.71,
+    "maximum_ratio": 0.5
+  }
+}

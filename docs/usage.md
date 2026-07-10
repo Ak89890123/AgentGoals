@@ -137,6 +137,20 @@ Scheduling status values:
 `next_goal` is the first runnable or in-progress Goal. `next_planned_goal` is the first open Goal even if it still needs acceptance or review. Agents may change source `priority` after an explicit user request, then reconcile; they must never edit derived queue fields directly.
 Invalid Goals are excluded from queue positions and returned separately with their issue codes and Contract paths.
 
+## Session Handoff Query
+
+For a repository with an explicit fresh onboarding report and matching validated global STATE:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.session_handoff `
+  --report outputs\ONBOARDING.json `
+  --state outputs\global\STATE.json
+```
+
+The command is read-only. A valid result selects `next_goal`, or `next_planned_goal` when no Goal is runnable, and returns only the selected Goal's lifecycle, gate, review, evidence, health, issue, and source-path context. The caller must confirm source Contract frontmatter and inspect Git independently.
+
+Exit code `2` means the fast path was rejected. Report `fallback_reason` and use the existing source/worktree scan. Do not run onboarding with `--apply`, refresh STATE, or mutate registration merely to avoid a fallback. See `docs/session-handoff.md` for the versioned decision table.
+
 ## Issue Interpretation
 
 - `missing`: registered root or expected goal path is missing.

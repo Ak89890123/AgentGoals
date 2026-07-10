@@ -1,0 +1,26 @@
+GIT CONTEXT
+repository=C:/fixture/repo
+branch=main
+worktree=main
+status:
+ M README.md
+ M goals/active/focus/PLAN.md
+?? notes/session-output.txt
+
+SESSION HANDOFF
+{"version":1,"mode":"fast_path","fallback_reason":null,"resume":{"version":1,"source":"global","visibility_verified":true,"focus_root_id":"fixture-root","next_goal":null,"next_planned_goal":"fixture-root/focus","open_count":2,"runnable_count":0,"invalid_count":0},"focus":{"goal_key":"fixture-root/focus","status":"in_progress","gate":"continue_before_review_gate","contract_path":"C:/fixture/repo/goals/active/focus/CONTRACT.md","plan_path":"C:/fixture/repo/goals/active/focus/PLAN.md","evidence_path":"C:/fixture/repo/goals/active/focus/EVIDENCE.md","evidence_status":"partial","review_required":true,"review_verdict":"pending","health_status":"ok","issues":["review_pending"]}}
+
+SOURCE CONFIRMATION
+---
+id: focus
+status: in_progress
+review:
+  required: true
+  verdict: pending
+---
+
+RESULT
+current Goal=fixture-root/focus
+gate=continue_before_review_gate
+next planned Goal=fixture-root/focus
+WIP remains classified from Git; no commit or Goal mutation is authorized.
