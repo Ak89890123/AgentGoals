@@ -30,6 +30,8 @@ The global `goal-preflight` skill patch has already passed proposal, independent
 
 The current production model is read-only and federated: each repo generates its own derived STATE, and the reviewed central global `.codex` registry aggregates registered repo STATE outputs. This is the current operator model, not a writer, watcher, or background automation approval.
 
+STATE version 2 adds deterministic scheduling. Goal Contracts may declare `scheduling.priority` and `scheduling.depends_on`; repo-local and global STATE derive canonical Goal keys, dependency status, queue positions, `next_goal`, and `next_planned_goal`. Dependencies always take precedence over priority.
+
 The global registry patch is complete at `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`. Additional global `.codex` writes still require a separate proposal, independent review, explicit approval, patch, and verification.
 
 ## Python Setup
@@ -78,6 +80,35 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 ```
 
 The aggregator reads only registered absolute `state_path` files and writes only the requested output directory. Missing or malformed repo STATE files become aggregate issues. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.
+
+## Goal Queue
+
+Query an existing derived STATE without modifying source files:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.queue --state outputs\STATE.json
+```
+
+Query the current global queue directly from registered repo STATE files without writing aggregate output:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.queue `
+  --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --json
+```
+
+Source scheduling metadata belongs in Contract frontmatter:
+
+```yaml
+scheduling:
+  priority: 80
+  depends_on:
+    - another-goal
+    - another-repo/cross-repo-goal
+```
+
+Priority ranges from `0` through `100`; higher values run first among dependency-safe peers. A bare dependency resolves within the same registered root. `queue_position` is always derived and must not be written into a Contract.
 
 ## Deterministic Run
 
@@ -131,6 +162,7 @@ The orchestrator rejects `--out` and configured global output paths under the us
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
 - `goals/completed/deterministic-lifecycle-orchestration/`: completed implementation goal for the deterministic single-command operator flow.
+- `goals/completed/global-goal-queue-scheduling/`: completed STATE v2 scheduling model and deterministic local/global Goal queue.
 - `docs/proposals/global-goal-registry.md`: proposed global `.codex` registry creation gate.
 - `docs/global-registry-schema-notes.md`: schema notes for federated aggregation registry entries.
 - `schemas/global-registry.schema.json`: executable schema for global registry entries.

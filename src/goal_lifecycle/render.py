@@ -10,8 +10,10 @@ class StateLike(Protocol):
     title: str
     status: str
     project: str
+    goal_key: str
     review: dict
     evidence: dict
+    scheduling: dict
     issues: list[str]
 
 
@@ -31,6 +33,20 @@ def render_state_markdown(entries: Sequence[StateLike]) -> str:
     else:
         lines.append("- No goals found.")
 
+    ordered = sorted(
+        (entry for entry in entries if entry.scheduling.get("queue_position") is not None),
+        key=lambda entry: (entry.scheduling["queue_position"], entry.goal_key),
+    )
+    if ordered:
+        lines.extend(["", "## Queue", ""])
+        for entry in ordered:
+            scheduling = entry.scheduling
+            unmet = ", ".join(f"`{item}`" for item in scheduling["unmet_dependencies"]) or "none"
+            lines.append(
+                f"{scheduling['queue_position']}. `{entry.goal_key}` - "
+                f"`{scheduling['status']}`, priority `{scheduling['priority']}`, unmet: {unmet}"
+            )
+
     append_issue_group(lines, "Waiting Review", entries, "review_pending")
     append_issue_group(lines, "Evidence Incomplete", entries, "evidence_incomplete")
     append_issue_group(lines, "Stale Entries", entries, "stale")
@@ -48,7 +64,11 @@ def render_state_markdown(entries: Sequence[StateLike]) -> str:
                 "",
                 f"- ID: `{entry.id}`",
                 f"- Project: `{entry.project}`",
+                f"- Goal key: `{entry.goal_key}`",
                 f"- Status: `{entry.status}`",
+                f"- Scheduling: `{entry.scheduling['status']}`",
+                f"- Priority: `{entry.scheduling['priority']}`",
+                f"- Queue position: `{entry.scheduling['queue_position']}`",
                 f"- Review: `{review_verdict}`",
                 f"- Evidence: `{evidence_status}`",
                 f"- Issues: {issues}",

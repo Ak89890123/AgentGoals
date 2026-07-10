@@ -4,13 +4,16 @@
   "title": "Goal State",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "generated_at", "entries"],
+  "required": ["version", "generated_at", "queue", "entries"],
   "properties": {
     "version": {
-      "const": 1
+      "const": 2
     },
     "generated_at": {
       "type": "string"
+    },
+    "queue": {
+      "$ref": "#/$defs/queue"
     },
     "entries": {
       "type": "array",
@@ -28,6 +31,8 @@
         "title",
         "status",
         "project",
+        "root_id",
+        "goal_key",
         "goal_root",
         "contract_path",
         "plan_path",
@@ -37,6 +42,7 @@
         "completed",
         "review",
         "evidence",
+        "scheduling",
         "next_action",
         "blocked_reason",
         "source_hash",
@@ -68,6 +74,14 @@
         "project": {
           "type": "string",
           "minLength": 1
+        },
+        "root_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goal_key": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
         },
         "goal_root": {
           "type": "string"
@@ -113,6 +127,9 @@
             }
           }
         },
+        "scheduling": {
+          "$ref": "#/$defs/scheduling"
+        },
         "next_action": {
           "type": ["string", "null"]
         },
@@ -136,9 +153,75 @@
               "status_folder_mismatch",
               "parse_error",
               "review_pending",
-              "evidence_incomplete"
+              "evidence_incomplete",
+              "invalid_scheduling",
+              "dependency_missing",
+              "dependency_cycle",
+              "duplicate_goal_key"
             ]
           }
+        }
+      }
+    },
+    "scheduling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priority", "depends_on", "status", "queue_position", "unmet_dependencies"],
+      "properties": {
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "depends_on": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[^/]+/[^/]+$"
+          }
+        },
+        "status": {
+          "enum": ["not_ready", "runnable", "in_progress", "blocked", "dependency_blocked", "done", "invalid"]
+        },
+        "queue_position": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "unmet_dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[^/]+/[^/]+$"
+          }
+        }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["next_goal", "next_planned_goal", "open_count", "runnable_count", "invalid_count"],
+      "properties": {
+        "next_goal": {
+          "type": ["string", "null"],
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "next_planned_goal": {
+          "type": ["string", "null"],
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "open_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runnable_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invalid_count": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     }

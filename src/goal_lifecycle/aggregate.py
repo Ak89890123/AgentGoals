@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 
 from goal_lifecycle.reconcile import StateEntry
 from goal_lifecycle.render import render_state_markdown
+from goal_lifecycle.scheduling import apply_scheduling, normalize_scheduling
 from goal_lifecycle.validate import SCHEMA_DIR, validate_state
 
 
@@ -31,6 +32,12 @@ class GlobalRegistryRoot:
 
 
 def aggregate(global_registry_path: Path, out_dir: Path) -> list[StateEntry]:
+    entries, queue = aggregate_entries(global_registry_path)
+    write_outputs(entries, out_dir, queue)
+    return entries
+
+
+def aggregate_entries(global_registry_path: Path) -> tuple[list[StateEntry], dict[str, Any]]:
     roots = load_global_registry(global_registry_path)
     entries: list[StateEntry] = []
 
@@ -39,9 +46,9 @@ def aggregate(global_registry_path: Path, out_dir: Path) -> list[StateEntry]:
             continue
         entries.extend(read_repo_state(root))
 
-    entries.sort(key=lambda entry: (entry.status, entry.project, entry.id))
-    write_outputs(entries, out_dir)
-    return entries
+    queue = apply_scheduling(entries, strict_missing=True)
+    entries.sort(key=lambda entry: (entry.scheduling["queue_position"] is None, entry.scheduling["queue_position"] or 0, entry.goal_key))
+    return entries, queue
 
 
 def load_global_registry(path: Path) -> list[GlobalRegistryRoot]:
@@ -106,11 +113,20 @@ def entry_from_payload(item: dict[str, Any], root: GlobalRegistryRoot) -> StateE
     if evidence_path:
         ensure_within(evidence_path, root.goal_root, item["id"], "evidence_path", "registered goal_root")
 
+    source_root_id = item["root_id"]
+    scheduling = dict(item["scheduling"])
+    scheduling["depends_on"] = [
+        rebase_dependency(dependency, source_root_id, root.id)
+        for dependency in scheduling["depends_on"]
+    ]
+
     return StateEntry(
         id=item["id"],
         title=item["title"],
         status=item["status"],
         project=item["project"],
+        root_id=root.id,
+        goal_key=f"{root.id}/{item['id']}",
         goal_root=str(goal_root),
         contract_path=str(contract_path) if contract_path else "",
         plan_path=str(plan_path) if plan_path else None,
@@ -120,6 +136,7 @@ def entry_from_payload(item: dict[str, Any], root: GlobalRegistryRoot) -> StateE
         completed=item["completed"],
         review=item["review"],
         evidence=item["evidence"],
+        scheduling=scheduling,
         next_action=item["next_action"],
         blocked_reason=item["blocked_reason"],
         source_hash=item["source_hash"],
@@ -144,6 +161,13 @@ def normalize_optional_entry_path(value: str | None, root: GlobalRegistryRoot) -
     return normalize_entry_path(value, root)
 
 
+def rebase_dependency(dependency: str, source_root_id: str, global_root_id: str) -> str:
+    prefix = f"{source_root_id}/"
+    if dependency.startswith(prefix):
+        return f"{global_root_id}/{dependency[len(prefix):]}"
+    return dependency
+
+
 def ensure_within(path: Path, base: Path, root_id: str, field_name: str, base_name: str) -> None:
     try:
         path.resolve().relative_to(base.resolve())
@@ -163,6 +187,8 @@ def aggregate_issue_entry(
         title=root.label,
         status=status,
         project=root.project,
+        root_id=root.id,
+        goal_key=f"{root.id}/{root.id}",
         goal_root=str(root.goal_root),
         contract_path="",
         plan_path=None,
@@ -172,6 +198,7 @@ def aggregate_issue_entry(
         completed=None,
         review={"required": False, "verdict": None},
         evidence={"status": None},
+        scheduling=normalize_scheduling(None, root.id)[0],
         next_action=None,
         blocked_reason=reason,
         source_hash=source_hash,
@@ -180,11 +207,12 @@ def aggregate_issue_entry(
     )
 
 
-def write_outputs(entries: list[StateEntry], out_dir: Path) -> None:
+def write_outputs(entries: list[StateEntry], out_dir: Path, queue: dict[str, Any]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = {
-        "version": 1,
+        "version": 2,
         "generated_at": now_iso(),
+        "queue": queue,
         "entries": [asdict(entry) for entry in entries],
     }
     (out_dir / "STATE.json").write_text(

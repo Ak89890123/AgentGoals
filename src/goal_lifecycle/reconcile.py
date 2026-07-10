@@ -12,6 +12,7 @@ import yaml
 
 from goal_lifecycle.frontmatter import parse_frontmatter
 from goal_lifecycle.render import render_state_markdown
+from goal_lifecycle.scheduling import apply_scheduling, normalize_scheduling
 
 
 OPEN_STATUSES = {"draft", "review_pending", "ready", "in_progress", "blocked"}
@@ -34,6 +35,8 @@ class StateEntry:
     title: str
     status: str
     project: str
+    root_id: str
+    goal_key: str
     goal_root: str
     contract_path: str
     plan_path: str | None
@@ -43,6 +46,7 @@ class StateEntry:
     completed: str | None
     review: dict[str, Any]
     evidence: dict[str, Any]
+    scheduling: dict[str, Any]
     next_action: str | None
     blocked_reason: str | None
     source_hash: str
@@ -77,8 +81,9 @@ def reconcile(registry_path: Path, out_dir: Path) -> list[StateEntry]:
             continue
         entries.extend(scan_goal_root(root))
 
-    entries.sort(key=lambda entry: (entry.status, entry.project, entry.id))
-    write_outputs(entries, out_dir)
+    queue = apply_scheduling(entries, strict_missing=False)
+    entries.sort(key=lambda entry: (entry.scheduling["queue_position"] is None, entry.scheduling["queue_position"] or 0, entry.goal_key))
+    write_outputs(entries, out_dir, queue)
     return entries
 
 
@@ -90,6 +95,8 @@ def scan_goal_root(root: RegistryRoot) -> list[StateEntry]:
                 title=root.label,
                 status="missing",
                 project=root.project,
+                root_id=root.id,
+                goal_key=f"{root.id}/{root.id}",
                 goal_root=str(root.goal_root),
                 contract_path="",
                 plan_path=None,
@@ -99,6 +106,7 @@ def scan_goal_root(root: RegistryRoot) -> list[StateEntry]:
                 completed=None,
                 review={"required": False, "verdict": None},
                 evidence={"status": None},
+                scheduling=normalize_scheduling(None, root.id)[0],
                 next_action=None,
                 blocked_reason=f"Registered goal root not found: {root.goal_root}",
                 source_hash="",
@@ -138,6 +146,8 @@ def parse_contract_candidate(path: Path, folder_name: str, root: RegistryRoot) -
 
     status = str(document.metadata.get("status") or "draft")
     issues = detect_issues(folder_name, status, plan_path, evidence_path, document.metadata, evidence_metadata, related_errors)
+    scheduling, scheduling_issues = normalize_scheduling(document.metadata.get("scheduling"), root.id)
+    issues.extend(issue for issue in scheduling_issues if issue not in issues)
 
     review = normalize_review(document.metadata.get("review"))
     evidence = {"status": evidence_metadata.get("status") if evidence_metadata else None}
@@ -147,6 +157,8 @@ def parse_contract_candidate(path: Path, folder_name: str, root: RegistryRoot) -
         title=str(document.metadata.get("title") or path.stem),
         status=status,
         project=str(document.metadata.get("project") or root.project),
+        root_id=root.id,
+        goal_key=f"{root.id}/{document.metadata.get('id') or path.stem}",
         goal_root=str(root.goal_root),
         contract_path=str(path),
         plan_path=str(plan_path) if plan_path.exists() else None,
@@ -156,6 +168,7 @@ def parse_contract_candidate(path: Path, folder_name: str, root: RegistryRoot) -
         completed=string_or_none(document.metadata.get("completed")),
         review=review,
         evidence=evidence,
+        scheduling=scheduling,
         next_action=None,
         blocked_reason="; ".join(related_errors) if related_errors else None,
         source_hash=sha256_text(text),
@@ -213,6 +226,8 @@ def parse_error_entry(path: Path, folder_name: str, root: RegistryRoot, exc: Exc
         title=path.name,
         status="parse_error",
         project=root.project,
+        root_id=root.id,
+        goal_key=f"{root.id}/{path.parent.name}",
         goal_root=str(root.goal_root),
         contract_path=str(path),
         plan_path=None,
@@ -222,6 +237,7 @@ def parse_error_entry(path: Path, folder_name: str, root: RegistryRoot, exc: Exc
         completed=None,
         review={"required": False, "verdict": None},
         evidence={"status": None},
+        scheduling=normalize_scheduling(None, root.id)[0],
         next_action=None,
         blocked_reason=f"{type(exc).__name__}: {exc}",
         source_hash="",
@@ -230,11 +246,12 @@ def parse_error_entry(path: Path, folder_name: str, root: RegistryRoot, exc: Exc
     )
 
 
-def write_outputs(entries: list[StateEntry], out_dir: Path) -> None:
+def write_outputs(entries: list[StateEntry], out_dir: Path, queue: dict[str, Any]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = {
-        "version": 1,
+        "version": 2,
         "generated_at": now_iso(),
+        "queue": queue,
         "entries": [asdict(entry) for entry in entries],
     }
     (out_dir / "STATE.json").write_text(
