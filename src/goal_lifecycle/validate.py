@@ -2,13 +2,30 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
 
 
-SCHEMA_DIR = Path(__file__).resolve().parents[2] / "schemas"
+def resolve_schema_dir(runtime_root: Path | None = None) -> Path:
+    roots = []
+    if runtime_root is not None:
+        roots.append(runtime_root)
+    else:
+        bundled_root = getattr(sys, "_MEIPASS", None)
+        if bundled_root:
+            roots.append(Path(bundled_root))
+        roots.append(Path(__file__).resolve().parents[2])
+    for root in roots:
+        candidate = (root / "schemas").resolve()
+        if (candidate / "goal-state.schema.json").is_file():
+            return candidate
+    return (roots[-1] / "schemas").resolve()
+
+
+SCHEMA_DIR = resolve_schema_dir()
 
 
 def load_json(path: Path) -> dict[str, Any]:

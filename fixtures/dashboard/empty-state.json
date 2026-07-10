@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "generated_at": "2026-07-11T00:00:00+00:00",
+  "queue": {
+    "next_goal": null,
+    "next_planned_goal": null,
+    "open_count": 0,
+    "runnable_count": 0,
+    "invalid_count": 0
+  },
+  "entries": []
+}

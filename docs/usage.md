@@ -151,6 +151,47 @@ The command is read-only. A valid result selects `next_goal`, or `next_planned_g
 
 Exit code `2` means the fast path was rejected. Report `fallback_reason` and use the existing source/worktree scan. Do not run onboarding with `--apply`, refresh STATE, or mutate registration merely to avoid a fallback. See `docs/session-handoff.md` for the versioned decision table.
 
+## Goal Control Desktop Application
+
+Goal Control consumes `outputs\global\STATE.json` through the existing JSON schema validator and presents a read-only desktop dashboard. It never reconciles, onboards, edits a Goal, writes a registry, or refreshes STATE on the user's behalf.
+
+Development launch:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.dashboard_app --state outputs\global\STATE.json
+```
+
+The application provides:
+
+- open, runnable, blocked, review-pending, stale, and completed counts;
+- search plus status, project, owner, repository, and health filters;
+- queue-first Goal ordering and a scrollable Goal dossier;
+- safe system opening for Contract, PLAN, and EVIDENCE;
+- manual refresh only, with visible malformed/missing STATE and path errors;
+- compact, standard, and wide desktop breakpoints. Compact mode hides duplicate Project/Owner table columns while retaining that information in the dossier.
+
+Package and verify:
+
+```powershell
+.\.venv\Scripts\python -m pip install -e ".[desktop]"
+.\scripts\build_dashboard.ps1
+.\scripts\benchmark_dashboard_package.ps1
+```
+
+`build_dashboard.ps1` creates an onedir windowed package at `dist\goal-dashboard\GoalControl`. Onedir is intentional: it avoids one-file extraction latency and keeps cold start inside the Contract budget. Do not move `GoalControl.exe` away from its `_internal` directory.
+
+Machine-readable smoke or benchmark output can be written even though the executable has no console:
+
+```powershell
+dist\goal-dashboard\GoalControl\GoalControl.exe `
+  --state outputs\global\STATE.json `
+  --smoke `
+  --probe-output outputs\dashboard-smoke.json
+```
+
+The packaged app discovers a relative default STATE from the executable's ancestor directories. An explicit `--state` path remains preferred for automation. Missing STATE, invalid schema, out-of-root source paths, or missing files are reported without mutation.
+
 ## Issue Interpretation
 
 - `missing`: registered root or expected goal path is missing.

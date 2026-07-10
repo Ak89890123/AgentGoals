@@ -162,6 +162,37 @@ Validate a fresh onboarding report and matching global STATE into compact close/
 
 Exit code `0` returns a versioned fast-path focus with lifecycle, review, evidence, health, source-path, and exact-gate fields. Exit code `2` returns a named fallback reason and preserves the existing read-only repository scan. The caller must still confirm source Contract frontmatter and inspect Git state. See `docs/session-handoff.md`.
 
+## Goal Control Desktop Dashboard
+
+Goal Control is a Windows-first, local-only desktop view over validated aggregate STATE. It uses the native Python/Tk shell, starts no server, performs no network request, and exposes no Goal mutation control.
+
+Run from source:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.dashboard_app --state outputs\global\STATE.json
+```
+
+Build the packaged application:
+
+```powershell
+.\.venv\Scripts\python -m pip install -e ".[desktop]"
+.\scripts\build_dashboard.ps1
+```
+
+The executable is generated at `dist\goal-dashboard\GoalControl\GoalControl.exe`. The folder is the installable unit; keep its `_internal` directory beside the executable. Generated packages are ignored and can be rebuilt deterministically.
+
+Keyboard shortcuts: `Ctrl+R` refreshes, `Ctrl+F` focuses search, `Esc` clears search, and `Enter` or double-click opens the selected Contract. Contract, PLAN, and EVIDENCE paths are opened only when they are absolute existing files under the registered Goal root.
+
+Performance checks:
+
+```powershell
+.\.venv\Scripts\python scripts\benchmark_dashboard.py --entries 1000 --iterations 20
+.\scripts\benchmark_dashboard_package.ps1
+```
+
+See `docs/usage.md` for packaging, probe, filtering, responsive layout, and recovery behavior.
+
 ## Non-goals
 
 - Do not make additional global `.codex` edits without a new proposal, independent review, explicit approval, patch, and verification.
@@ -182,6 +213,7 @@ Exit code `0` returns a versioned fast-path focus with lifecycle, review, eviden
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/session-handoff.md`: deterministic session close/resume protocol and fallback rules.
+- `docs/desktop-shell-spike.md`: Goal Control desktop-shell decision and measured performance evidence.
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
 - `goals/completed/deterministic-lifecycle-orchestration/`: completed implementation goal for the deterministic single-command operator flow.

@@ -1,0 +1,95 @@
+{
+  "version": 2,
+  "generated_at": "2026-07-11T00:00:00+00:00",
+  "queue": {
+    "next_goal": "fixture-repo/ready-goal",
+    "next_planned_goal": "fixture-repo/ready-goal",
+    "open_count": 1,
+    "runnable_count": 1,
+    "invalid_count": 0
+  },
+  "entries": [
+    {
+      "id": "ready-goal",
+      "title": "Ready Goal",
+      "status": "ready",
+      "project": "Dashboard Fixtures",
+      "root_id": "fixture-repo",
+      "goal_key": "fixture-repo/ready-goal",
+      "goal_root": "C:/dashboard-fixtures/goals/ready-goal",
+      "contract_path": "C:/dashboard-fixtures/goals/ready-goal/CONTRACT.md",
+      "plan_path": "C:/dashboard-fixtures/goals/ready-goal/PLAN.md",
+      "evidence_path": "C:/dashboard-fixtures/goals/ready-goal/EVIDENCE.md",
+      "owner": "qa",
+      "updated": "2026-07-11",
+      "completed": null,
+      "review": {
+        "required": false,
+        "verdict": "pending"
+      },
+      "evidence": {
+        "status": "pending"
+      },
+      "health": {
+        "policy_version": 1,
+        "status": "healthy",
+        "evaluated_on": "2026-07-11",
+        "last_activity": "2026-07-11",
+        "findings": []
+      },
+      "scheduling": {
+        "priority": 50,
+        "depends_on": [],
+        "status": "runnable",
+        "queue_position": 1,
+        "unmet_dependencies": []
+      },
+      "next_action": null,
+      "blocked_reason": null,
+      "source_hash": "fixture",
+      "last_seen": "2026-07-11T00:00:00+00:00",
+      "issues": []
+    },
+    {
+      "id": "completed-goal",
+      "title": "Completed Goal",
+      "status": "completed",
+      "project": "Dashboard Fixtures",
+      "root_id": "fixture-repo",
+      "goal_key": "fixture-repo/completed-goal",
+      "goal_root": "C:/dashboard-fixtures/goals/completed-goal",
+      "contract_path": "C:/dashboard-fixtures/goals/completed-goal/CONTRACT.md",
+      "plan_path": "C:/dashboard-fixtures/goals/completed-goal/PLAN.md",
+      "evidence_path": "C:/dashboard-fixtures/goals/completed-goal/EVIDENCE.md",
+      "owner": "qa",
+      "updated": "2026-07-11",
+      "completed": "2026-07-11",
+      "review": {
+        "required": false,
+        "verdict": "PASS"
+      },
+      "evidence": {
+        "status": "complete"
+      },
+      "health": {
+        "policy_version": 1,
+        "status": "healthy",
+        "evaluated_on": "2026-07-11",
+        "last_activity": "2026-07-11",
+        "findings": []
+      },
+      "scheduling": {
+        "priority": 50,
+        "depends_on": [],
+        "status": "done",
+        "queue_position": null,
+        "unmet_dependencies": []
+      },
+      "next_action": null,
+      "blocked_reason": null,
+      "source_hash": "fixture",
+      "last_seen": "2026-07-11T00:00:00+00:00",
+      "issues": []
+    }
+  ]
+}

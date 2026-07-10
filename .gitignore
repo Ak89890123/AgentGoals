@@ -6,5 +6,8 @@ __pycache__/
 .coverage
 *.egg-info/
 outputs/
+dist/
+build/
+*.spec
 STATE.json
 STATE.md
