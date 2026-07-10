@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "generated_at": "2026-07-11T00:00:00+00:00",
+  "queue": {
+    "next_goal": null,
+    "next_planned_goal": "fixture-repo/blocked-goal",
+    "open_count": 1,
+    "runnable_count": 0,
+    "invalid_count": 0
+  },
+  "entries": [
+    {
+      "id": "blocked-goal",
+      "title": "Blocked Goal",
+      "status": "blocked",
+      "project": "Dashboard Fixtures",
+      "root_id": "fixture-repo",
+      "goal_key": "fixture-repo/blocked-goal",
+      "goal_root": "C:/dashboard-fixtures/goals/blocked-goal",
+      "contract_path": "C:/dashboard-fixtures/goals/blocked-goal/CONTRACT.md",
+      "plan_path": "C:/dashboard-fixtures/goals/blocked-goal/PLAN.md",
+      "evidence_path": "C:/dashboard-fixtures/goals/blocked-goal/EVIDENCE.md",
+      "owner": "qa",
+      "updated": "2026-07-11",
+      "completed": null,
+      "review": {
+        "required": false,
+        "verdict": "pending"
+      },
+      "evidence": {
+        "status": "pending"
+      },
+      "health": {
+        "policy_version": 1,
+        "status": "healthy",
+        "evaluated_on": "2026-07-11",
+        "last_activity": "2026-07-11",
+        "findings": []
+      },
+      "scheduling": {
+        "priority": 50,
+        "depends_on": [],
+        "status": "blocked",
+        "queue_position": 1,
+        "unmet_dependencies": []
+      },
+      "next_action": null,
+      "blocked_reason": "Waiting for explicit approval",
+      "source_hash": "fixture",
+      "last_seen": "2026-07-11T00:00:00+00:00",
+      "issues": []
+    }
+  ]
+}

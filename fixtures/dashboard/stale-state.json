@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "generated_at": "2026-07-11T00:00:00+00:00",
+  "queue": {
+    "next_goal": "fixture-repo/stale-goal",
+    "next_planned_goal": "fixture-repo/stale-goal",
+    "open_count": 1,
+    "runnable_count": 1,
+    "invalid_count": 0
+  },
+  "entries": [
+    {
+      "id": "stale-goal",
+      "title": "Stale Goal",
+      "status": "in_progress",
+      "project": "Dashboard Fixtures",
+      "root_id": "fixture-repo",
+      "goal_key": "fixture-repo/stale-goal",
+      "goal_root": "C:/dashboard-fixtures/goals/stale-goal",
+      "contract_path": "C:/dashboard-fixtures/goals/stale-goal/CONTRACT.md",
+      "plan_path": "C:/dashboard-fixtures/goals/stale-goal/PLAN.md",
+      "evidence_path": "C:/dashboard-fixtures/goals/stale-goal/EVIDENCE.md",
+      "owner": "qa",
+      "updated": "2026-07-11",
+      "completed": null,
+      "review": {
+        "required": false,
+        "verdict": "pending"
+      },
+      "evidence": {
+        "status": "pending"
+      },
+      "health": {
+        "policy_version": 1,
+        "status": "issues",
+        "evaluated_on": "2026-07-11",
+        "last_activity": "2026-05-01",
+        "findings": [
+          {
+            "code": "health_stale",
+            "rule": "active_goal_stale",
+            "severity": "warning",
+            "field": "updated",
+            "date": "2026-05-01",
+            "age_days": 71,
+            "threshold_days": 30
+          }
+        ]
+      },
+      "scheduling": {
+        "priority": 50,
+        "depends_on": [],
+        "status": "in_progress",
+        "queue_position": 1,
+        "unmet_dependencies": []
+      },
+      "next_action": null,
+      "blocked_reason": null,
+      "source_hash": "fixture",
+      "last_seen": "2026-07-11T00:00:00+00:00",
+      "issues": [
+        "health_stale"
+      ]
+    }
+  ]
+}
