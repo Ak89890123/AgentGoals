@@ -27,7 +27,7 @@ tags:
 
 Propose a narrow, review-gated upgrade to the global `goal-preflight` skill using evidence from this harness.
 
-This proposal does not authorize or perform mutation of `C:\Users\jimmy0302\.codex\skills\goal-preflight`. It defines the patch scope that should go to independent review before any global file is edited.
+This proposal did not itself authorize or perform mutation of `C:\Users\jimmy0302\.codex\skills\goal-preflight`. It defined the patch scope that subsequently passed independent review, explicit approval, patch, and verification.
 
 ## Baseline
 
@@ -219,8 +219,8 @@ Reviewer finding:
 
 ## Approval Boundary
 
-The next gate is independent review of this proposal.
-Independent review has passed.
+The proposal's next gate was independent review.
+Independent review passed, the required approval token was received, and the patch result is recorded below.
 
 Even after review passes, patching global files requires this exact approval token:
 
