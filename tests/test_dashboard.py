@@ -18,6 +18,7 @@ from goal_lifecycle.dashboard import (
     DashboardSession,
     build_dashboard,
     filter_dashboard_entries,
+    group_dashboard_entries,
     load_dashboard,
     resolve_entry_path,
 )
@@ -189,6 +190,45 @@ def test_filter_options_are_unique_sorted_and_include_unassigned_owner() -> None
     assert dashboard.options.roots == ("repo-a", "repo-b")
 
 
+def test_dashboard_groups_goals_by_repository_without_losing_queue_order() -> None:
+    dashboard = build_dashboard(
+        make_payload(
+            [
+                make_entry(
+                    "a-second",
+                    root_id="repo-a",
+                    queue_position=4,
+                    status="blocked",
+                    scheduling_status="blocked",
+                ),
+                make_entry("b-first", root_id="repo-b", queue_position=1, scheduling_status="runnable"),
+                make_entry(
+                    "a-first",
+                    root_id="repo-a",
+                    queue_position=2,
+                    status="in_progress",
+                    scheduling_status="in_progress",
+                ),
+                make_entry(
+                    "b-done",
+                    root_id="repo-b",
+                    queue_position=None,
+                    status="completed",
+                    scheduling_status="done",
+                ),
+            ]
+        )
+    )
+
+    groups = group_dashboard_entries(dashboard.entries)
+
+    assert [group.root_id for group in groups] == ["repo-b", "repo-a"]
+    assert [entry.goal_key for entry in groups[0].entries] == ["repo-b/b-first", "repo-b/b-done"]
+    assert [entry.goal_key for entry in groups[1].entries] == ["repo-a/a-first", "repo-a/a-second"]
+    assert (groups[0].total, groups[0].open, groups[0].runnable, groups[0].blocked) == (2, 1, 1, 0)
+    assert (groups[1].total, groups[1].open, groups[1].runnable, groups[1].blocked) == (2, 2, 1, 1)
+
+
 def test_resolve_entry_path_accepts_only_existing_file_under_goal_root() -> None:
     with dashboard_test_dir() as temp_dir:
         goal_root = temp_dir / "goals"
@@ -346,5 +386,8 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             root.update_idletasks()
             assert app.model is not None
             assert app.model.summary.total == 1
+            repo_row = app.tree.get_children()[0]
+            assert repo_row == "repo::repo-a"
+            assert app.tree.get_children(repo_row) == ("repo-a/demo",)
         finally:
             root.destroy()

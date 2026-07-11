@@ -100,6 +100,16 @@ class DashboardEntry:
 
 
 @dataclass(frozen=True)
+class RepositoryGroup:
+    root_id: str
+    entries: tuple[DashboardEntry, ...]
+    total: int
+    open: int
+    runnable: int
+    blocked: int
+
+
+@dataclass(frozen=True)
 class DashboardModel:
     generated_at: str
     next_goal: str | None
@@ -183,6 +193,27 @@ def filter_dashboard_entries(
             continue
         result.append(entry)
     return result
+
+
+def group_dashboard_entries(entries: Iterable[DashboardEntry]) -> list[RepositoryGroup]:
+    """Group a queue-ordered result set by repository, preserving first appearance."""
+    grouped: dict[str, list[DashboardEntry]] = {}
+    for entry in entries:
+        grouped.setdefault(entry.root_id, []).append(entry)
+    return [
+        RepositoryGroup(
+            root_id=root_id,
+            entries=tuple(repo_entries),
+            total=len(repo_entries),
+            open=sum(entry.status in OPEN_STATUSES for entry in repo_entries),
+            runnable=sum(entry.scheduling_status in RUNNABLE_SCHEDULING for entry in repo_entries),
+            blocked=sum(
+                entry.status == "blocked" or entry.scheduling_status in BLOCKED_SCHEDULING
+                for entry in repo_entries
+            ),
+        )
+        for root_id, repo_entries in grouped.items()
+    ]
 
 
 def resolve_entry_path(entry: DashboardEntry, field_name: str) -> Path:
