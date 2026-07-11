@@ -29,6 +29,7 @@ from goal_lifecycle.dashboard_app import (
     format_queue_position,
     responsive_layout,
     status_tone,
+    translate,
 )
 from goal_lifecycle.validate import resolve_schema_dir
 
@@ -335,6 +336,13 @@ def test_desktop_shell_helpers_keep_status_and_cli_semantics_stable() -> None:
     assert build_parser().parse_args(["--probe-output", "probe.json"]).probe_output == Path("probe.json")
 
 
+def test_dashboard_translations_cover_traditional_chinese_and_fallback_to_english() -> None:
+    assert translate("zh_TW", "refresh") == "重新整理"
+    assert translate("zh_TW", "repository") == "儲存庫"
+    assert translate("en", "open") == "Open"
+    assert translate("unknown", "refresh") == "Refresh"
+
+
 def test_packaged_app_discovers_repo_state_from_executable_ancestors() -> None:
     with dashboard_test_dir() as temp_dir:
         repo = temp_dir / "repo"
@@ -389,5 +397,11 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             repo_row = app.tree.get_children()[0]
             assert repo_row == "repo::repo-a"
             assert app.tree.get_children(repo_row) == ("repo-a/demo",)
+            assert app.root.title() == "目標控制台 — 本機儀表板"
+            assert app.tree.heading("status")["text"] == "狀態"
+            app.language_var.set("English")
+            app._change_language()
+            assert app.root.title() == "Goal Control — Local Dashboard"
+            assert app.tree.heading("status")["text"] == "STATUS"
         finally:
             root.destroy()
