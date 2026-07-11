@@ -25,6 +25,7 @@ from goal_lifecycle.dashboard import (
 from goal_lifecycle.dashboard_app import (
     DashboardApplication,
     build_parser,
+    dashboard_asset_path,
     discover_state_path,
     format_queue_position,
     responsive_layout,
@@ -343,6 +344,11 @@ def test_dashboard_translations_cover_traditional_chinese_and_fallback_to_englis
     assert translate("unknown", "refresh") == "Refresh"
 
 
+def test_dashboard_icon_assets_are_available_from_the_source_tree() -> None:
+    assert dashboard_asset_path("goal-control-target.ico").is_file()
+    assert dashboard_asset_path("goal-control-target.png").is_file()
+
+
 def test_packaged_app_discovers_repo_state_from_executable_ancestors() -> None:
     with dashboard_test_dir() as temp_dir:
         repo = temp_dir / "repo"
@@ -398,7 +404,14 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             assert repo_row == "repo::repo-a"
             assert app.tree.get_children(repo_row) == ("repo-a/demo",)
             assert app.root.title() == "目標控制台 — 本機儀表板"
+            assert hasattr(app, "window_icon")
             assert app.tree.heading("status")["text"] == "狀態"
+            app._manual_column_widths["title"] = 412
+            app._apply_responsive_layout()
+            assert int(app.tree.column("title", "width")) == 412
+            app._autofit_tree_column("title")
+            assert int(app.tree.column("title", "width")) >= 38
+            assert "title" in app._manual_column_widths
             app.language_var.set("English")
             app._change_language()
             assert app.root.title() == "Goal Control — Local Dashboard"

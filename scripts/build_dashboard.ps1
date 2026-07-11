@@ -8,6 +8,8 @@ $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $python = Join-Path $repoRoot ".venv\Scripts\python.exe"
 $launcher = Join-Path $repoRoot "apps\goal_dashboard.pyw"
 $schemas = Join-Path $repoRoot "schemas"
+$assets = Join-Path $repoRoot "assets"
+$icon = Join-Path $assets "goal-control-target.ico"
 $source = Join-Path $repoRoot "src"
 $work = Join-Path $repoRoot ".tmp\pyinstaller-dashboard"
 if (-not $OutputDir) {
@@ -20,6 +22,9 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
 }
 if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
     throw "Dashboard launcher is missing: $launcher"
+}
+if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
+    throw "Dashboard icon is missing: $icon"
 }
 
 & $python -m PyInstaller --version | Out-Null
@@ -38,7 +43,9 @@ $arguments = @(
     "--workpath", $work,
     "--specpath", $work,
     "--paths", $source,
-    "--add-data", "$schemas;schemas"
+    "--add-data", "$schemas;schemas",
+    "--add-data", "$assets;assets",
+    "--icon", $icon
 )
 if (-not $SkipClean) {
     $arguments += "--clean"
