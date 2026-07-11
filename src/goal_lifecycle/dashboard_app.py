@@ -16,7 +16,9 @@ from goal_lifecycle.dashboard import (
     DashboardFilters,
     DashboardModel,
     DashboardSession,
+    RepositoryGroup,
     filter_dashboard_entries,
+    group_dashboard_entries,
 )
 
 
@@ -121,6 +123,7 @@ class DashboardApplication:
         self.model: DashboardModel | None = None
         self.visible_entries: list[DashboardEntry] = []
         self.entry_by_key: dict[str, DashboardEntry] = {}
+        self.repository_by_iid: dict[str, RepositoryGroup] = {}
         self._filter_job: str | None = None
         self._resize_job: str | None = None
         self._startup_started = startup_started or time.perf_counter()
@@ -368,7 +371,9 @@ class DashboardApplication:
         self.detail_panel = detail_panel
 
         columns = ("queue", "title", "status", "project", "owner", "health", "updated")
-        self.tree = ttk.Treeview(list_panel, columns=columns, show="headings", style="Dashboard.Treeview")
+        self.tree = ttk.Treeview(list_panel, columns=columns, show="tree headings", style="Dashboard.Treeview")
+        self.tree.heading("#0", text="")
+        self.tree.column("#0", width=34, minwidth=34, stretch=False)
         headings = {
             "queue": ("Q", "center"),
             "title": ("GOAL", "w"),
@@ -402,6 +407,7 @@ class DashboardApplication:
             ("warning", COLORS["warning_dark"], COLORS["text"]),
             ("complete", COLORS["complete_dark"], COLORS["muted"]),
             ("neutral", COLORS["panel"], COLORS["text"]),
+            ("repository", COLORS["blue_dark"], COLORS["text"]),
         ):
             self.tree.tag_configure(tone, background=background, foreground=foreground)
 
@@ -584,6 +590,7 @@ class DashboardApplication:
             self.model = None
             self.last_error = str(exc)
             self.entry_by_key.clear()
+            self.repository_by_iid.clear()
             self.visible_entries.clear()
             for item in self.tree.get_children():
                 self.tree.delete(item)
@@ -632,24 +639,45 @@ class DashboardApplication:
             health=self.health_var.get(),
         )
         self.visible_entries = filter_dashboard_entries(self.model.entries, filters)
+        repository_groups = group_dashboard_entries(self.visible_entries)
+        self.repository_by_iid.clear()
         for item in self.tree.get_children():
             self.tree.delete(item)
-        for entry in self.visible_entries:
+        for group in repository_groups:
+            repo_iid = f"repo::{group.root_id}"
+            self.repository_by_iid[repo_iid] = group
             self.tree.insert(
                 "",
                 "end",
-                iid=entry.goal_key,
+                iid=repo_iid,
+                open=True,
                 values=(
-                    format_queue_position(entry.queue_position),
-                    entry.title,
-                    entry.status.replace("_", " ").upper(),
-                    entry.project,
-                    entry.display_owner,
-                    entry.health_status.upper(),
-                    entry.updated or "—",
+                    "",
+                    group.root_id.upper(),
+                    f"{group.open} OPEN",
+                    f"{group.total} GOALS",
+                    "",
+                    f"{group.blocked} BLOCKED",
+                    "",
                 ),
-                tags=(status_tone(entry.status),),
+                tags=("repository",),
             )
+            for entry in group.entries:
+                self.tree.insert(
+                    repo_iid,
+                    "end",
+                    iid=entry.goal_key,
+                    values=(
+                        format_queue_position(entry.queue_position),
+                        entry.title,
+                        entry.status.replace("_", " ").upper(),
+                        entry.project,
+                        entry.display_owner,
+                        entry.health_status.upper(),
+                        entry.updated or "—",
+                    ),
+                    tags=(status_tone(entry.status),),
+                )
         target = select_goal if select_goal in {entry.goal_key for entry in self.visible_entries} else None
         if not target and self.visible_entries:
             target = self.visible_entries[0].goal_key
@@ -657,6 +685,9 @@ class DashboardApplication:
             self.tree.selection_set(target)
             self.tree.focus(target)
             self.tree.see(target)
+            parent = self.tree.parent(target)
+            if parent:
+                self.tree.see(parent)
             self._show_detail(self.entry_by_key[target])
         else:
             self._clear_detail()
@@ -667,6 +698,26 @@ class DashboardApplication:
         selection = self.tree.selection()
         if selection and selection[0] in self.entry_by_key:
             self._show_detail(self.entry_by_key[selection[0]])
+        elif selection and selection[0] in self.repository_by_iid:
+            self._show_repository_detail(self.repository_by_iid[selection[0]])
+
+    def _show_repository_detail(self, group: RepositoryGroup) -> None:
+        self.detail_title.set(group.root_id)
+        self.detail_key.set(f"Repository  ·  {group.total} Goals")
+        self.detail_meta.set(
+            f"{group.open} OPEN  ·  {group.runnable} RUNNABLE  ·  {group.blocked} BLOCKED"
+        )
+        next_entry = next(
+            (entry for entry in group.entries if entry.scheduling_status in {"runnable", "in_progress"}),
+            None,
+        )
+        self.detail_gate.set(
+            f"Next in repository: {next_entry.title}" if next_entry else "No runnable Goal in this repository"
+        )
+        self.detail_health.set("Repository summary derived from its registered Goals")
+        self.detail_issues.set("Select a Goal to inspect source artifacts and exact lifecycle gates")
+        for button in self.path_buttons.values():
+            button.configure(state="disabled")
 
     def _show_detail(self, entry: DashboardEntry) -> None:
         self.detail_title.set(entry.title)
@@ -696,7 +747,7 @@ class DashboardApplication:
 
     def open_source(self, field_name: str) -> None:
         selection = self.tree.selection()
-        if not selection:
+        if not selection or selection[0] not in self.entry_by_key:
             return
         try:
             self.session.open_source(selection[0], field_name)
