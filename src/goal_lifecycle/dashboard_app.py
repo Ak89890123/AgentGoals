@@ -44,6 +44,20 @@ COLORS = {
     "complete_dark": "#213A24",
 }
 
+# A content fit should remain useful in the dashboard rather than allowing one
+# unusually long value to consume the entire table.
+COLUMN_AUTOFIT_MAX_WIDTH = 640
+COLUMN_AUTOFIT_PADDING = 24
+DASHBOARD_ICON_NAME = "goal-control-target"
+
+
+def dashboard_asset_path(filename: str) -> Path:
+    """Resolve a bundled dashboard asset in source and PyInstaller builds."""
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    if bundle_root:
+        return Path(bundle_root) / "assets" / filename
+    return Path(__file__).resolve().parents[2] / "assets" / filename
+
 TRANSLATIONS = {
     "en": {
         "app_title": "Goal Control — Local Dashboard",
@@ -260,6 +274,8 @@ class DashboardApplication:
         self.repository_by_iid: dict[str, RepositoryGroup] = {}
         self._filter_job: str | None = None
         self._resize_job: str | None = None
+        self._resizing_column: str | None = None
+        self._manual_column_widths: dict[str, int] = {}
         self._startup_started = startup_started or time.perf_counter()
         self.last_error: str | None = None
         self.detail_wrapped_labels: list[tk.Label] = []
@@ -348,6 +364,22 @@ class DashboardApplication:
         self.root.configure(bg=COLORS["bg"])
         self.root.geometry("1440x860")
         self.root.minsize(1080, 680)
+        self._set_window_icon()
+
+    def _set_window_icon(self) -> None:
+        icon_path = dashboard_asset_path(f"{DASHBOARD_ICON_NAME}.ico")
+        if not icon_path.is_file():
+            return
+        try:
+            self.root.iconbitmap(default=str(icon_path))
+            png_path = dashboard_asset_path(f"{DASHBOARD_ICON_NAME}.png")
+            if png_path.is_file():
+                self.window_icon = tk.PhotoImage(file=str(png_path))
+                self.root.iconphoto(True, self.window_icon)
+        except tk.TclError:
+            # The dashboard remains usable on platforms that do not support
+            # Windows icon resources.
+            pass
 
     def _configure_styles(self) -> None:
         style = ttk.Style(self.root)
@@ -618,7 +650,9 @@ class DashboardApplication:
         self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
-        self.tree.bind("<Double-1>", lambda _event: self.open_source("contract_path"))
+        self.tree.bind("<ButtonPress-1>", self._on_tree_button_press, add="+")
+        self.tree.bind("<ButtonRelease-1>", self._on_tree_button_release, add="+")
+        self.tree.bind("<Double-1>", self._on_tree_double_click)
         self.tree.bind("<Return>", lambda _event: self.open_source("contract_path"))
         for tone, background, foreground in (
             ("active", COLORS["accent_dark"], COLORS["text"]),
@@ -767,6 +801,61 @@ class DashboardApplication:
         self.root.bind("<Escape>", lambda _event: self.search_var.set(""))
         self.root.bind("<Configure>", self._schedule_responsive_layout)
 
+    def _column_before_separator(self, x: int) -> str | None:
+        """Return the data column immediately to the left of a header separator."""
+        identifier = self.tree.identify_column(max(0, x - 2))
+        if not identifier.startswith("#") or identifier == "#0":
+            return None
+        try:
+            index = int(identifier[1:]) - 1
+        except ValueError:
+            return None
+        columns = self.tree.cget("columns")
+        return columns[index] if 0 <= index < len(columns) else None
+
+    def _on_tree_button_press(self, event: tk.Event[tk.Misc]) -> None:
+        self._resizing_column = (
+            self._column_before_separator(event.x)
+            if self.tree.identify_region(event.x, event.y) == "separator"
+            else None
+        )
+
+    def _on_tree_button_release(self, _event: tk.Event[tk.Misc]) -> None:
+        if self._resizing_column is not None:
+            self._manual_column_widths[self._resizing_column] = int(self.tree.column(self._resizing_column, "width"))
+        self._resizing_column = None
+
+    def _on_tree_double_click(self, event: tk.Event[tk.Misc]) -> str | None:
+        if self.tree.identify_region(event.x, event.y) == "separator":
+            column = self._column_before_separator(event.x)
+            if column is not None:
+                self._autofit_tree_column(column)
+            return "break"
+        self.open_source("contract_path")
+        return None
+
+    def _autofit_tree_column(self, column: str) -> None:
+        """Fit a visible data column to its heading and currently rendered values."""
+        columns = self.tree.cget("columns")
+        index = columns.index(column)
+        style = ttk.Style(self.root)
+        cell_font = tkfont.Font(font=style.lookup("Dashboard.Treeview", "font"))
+        heading_font = tkfont.Font(font=style.lookup("Dashboard.Treeview.Heading", "font"))
+        widest = heading_font.measure(str(self.tree.heading(column, "text")))
+        for item_id in self.tree.get_children(""):
+            widest = max(widest, self._widest_tree_value(item_id, index, cell_font))
+        width = max(38, min(COLUMN_AUTOFIT_MAX_WIDTH, widest + COLUMN_AUTOFIT_PADDING))
+        self.tree.column(column, width=width, minwidth=38, stretch=False)
+        self._manual_column_widths[column] = width
+
+    def _widest_tree_value(self, item_id: str, column_index: int, font: tkfont.Font) -> int:
+        values = self.tree.item(item_id, "values")
+        value = str(values[column_index]) if column_index < len(values) else ""
+        widest = font.measure(value)
+        for child_id in self.tree.get_children(item_id):
+            widest = max(widest, self._widest_tree_value(child_id, column_index, font))
+        return widest
+
     def _scroll_detail(self, event: tk.Event[tk.Misc]) -> None:
         delta = -1 if event.delta > 0 else 1
         self.detail_canvas.yview_scroll(delta * 3, "units")
@@ -783,11 +872,12 @@ class DashboardApplication:
         layout = responsive_layout(self.root.winfo_width())
         for column, width in layout.columns.items():
             hidden = width == 0
+            effective_width = self._manual_column_widths.get(column, width)
             self.tree.column(
                 column,
-                width=width,
+                width=0 if hidden else effective_width,
                 minwidth=0 if hidden else 38,
-                stretch=False if hidden else column in {"title", "project"},
+                stretch=False if hidden or column in self._manual_column_widths else column in {"title", "project"},
             )
         for label in self.detail_wrapped_labels:
             label.configure(wraplength=layout.detail_wrap)
