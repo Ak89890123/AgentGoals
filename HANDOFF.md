@@ -77,3 +77,31 @@ Before changing `goal-preflight` or global workflow behavior, use the review-fir
 3. explicit approval
 4. patch
 5. verification
+
+## 2026-07-11 Session Wrap-Up
+
+### Done
+
+- Delivered the lightweight Windows Goal Control desktop dashboard and packaged it under `dist/goal-dashboard/GoalControl/`.
+- Changed the primary information hierarchy to Repository → queue-ordered Goals instead of one flat global Goal list.
+- Added an in-app language setting with Traditional Chinese as the default and English as the alternate locale.
+- Created a Windows desktop shortcut named `Goal Control.lnk` that targets the packaged executable.
+- Verified the final implementation with 138 passing tests and a successful 29.6 MB packaged build.
+
+### Commits
+
+- `354c624 Build lightweight Goal Control desktop dashboard`
+- `f258029 Group Goal dashboard by repository`
+- `b3bf9d1 Add Traditional Chinese dashboard locale`
+
+### Current State
+
+- Branch: `master`
+- Main worktree: `C:\devhome\goal life cycle`
+- Product work is committed; generated packages and visual QA captures remain ignored.
+- `outputs/ONBOARDING.json` plus `outputs/global/STATE.json` currently produce the session-handoff fallback `resume_unsupported`; do not mutate lifecycle sources merely to repair the fast path.
+
+### Next
+
+- Refresh the explicit onboarding report and matching validated aggregate only through the normal lifecycle workflow when resuming Goal work.
+- Re-evaluate the canonical next Goal from fresh STATE before starting implementation; the stale fallback currently names `multi-repo-goal-onboarding`, which is already completed in source.
