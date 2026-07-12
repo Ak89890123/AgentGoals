@@ -1,5 +1,6 @@
 param(
     [string]$OutputDir = "",
+    [string]$SmokeStatePath = "",
     [switch]$SkipClean
 )
 
@@ -69,3 +70,49 @@ Write-Output "InstalledSizeMB: $sizeMb"
 if ($size -gt 60MB) {
     throw "Installed package exceeds the 60 MB Contract budget: $sizeMb MB"
 }
+
+$sourceSchema = Join-Path $schemas "goal-state.schema.json"
+$bundledSchema = Join-Path $packageDir "_internal\schemas\goal-state.schema.json"
+if (-not (Test-Path -LiteralPath $bundledSchema -PathType Leaf)) {
+    throw "Packaged Goal STATE schema is missing: $bundledSchema"
+}
+$sourceSchemaHash = (Get-FileHash -LiteralPath $sourceSchema -Algorithm SHA256).Hash
+$bundledSchemaHash = (Get-FileHash -LiteralPath $bundledSchema -Algorithm SHA256).Hash
+if ($sourceSchemaHash -ne $bundledSchemaHash) {
+    throw "Packaged Goal STATE schema does not match the source schema"
+}
+Write-Output "BundledSchemaSHA256: $bundledSchemaHash"
+
+$liveStatePath = Join-Path $repoRoot "outputs\global\STATE.json"
+$fixtureStatePath = Join-Path $repoRoot "fixtures\dashboard\clean-state.json"
+if ($SmokeStatePath) {
+    $statePath = [System.IO.Path]::GetFullPath($SmokeStatePath)
+} elseif (Test-Path -LiteralPath $liveStatePath -PathType Leaf) {
+    $statePath = $liveStatePath
+} else {
+    $statePath = $fixtureStatePath
+}
+if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) {
+    throw "Dashboard smoke STATE is missing: $statePath"
+}
+$probe = Join-Path $repoRoot ".tmp\dashboard-package-smoke.json"
+if (Test-Path -LiteralPath $probe) {
+    Remove-Item -LiteralPath $probe -Force
+}
+$quotedState = '"' + $statePath + '"'
+$quotedProbe = '"' + $probe + '"'
+$process = Start-Process -FilePath $executable -ArgumentList @(
+    "--state", $quotedState,
+    "--smoke",
+    "--probe-output", $quotedProbe
+) -WindowStyle Hidden -PassThru -Wait
+$probePayload = $null
+if (Test-Path -LiteralPath $probe -PathType Leaf) {
+    $probePayload = Get-Content -LiteralPath $probe -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+if ($process.ExitCode -ne 0 -or $null -eq $probePayload -or $probePayload.status -ne "passed") {
+    $detail = if ($null -ne $probePayload) { $probePayload | ConvertTo-Json -Compress } else { "probe missing" }
+    throw "Packaged dashboard smoke failed: exit=$($process.ExitCode) $detail"
+}
+Write-Output "PackageSmokeState: $statePath"
+Write-Output "PackageSmokeEntries: $($probePayload.entries)"

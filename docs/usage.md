@@ -268,7 +268,11 @@ Package and verify:
 .\scripts\benchmark_dashboard_package.ps1
 ```
 
-`build_dashboard.ps1` creates an onedir windowed package at `dist\goal-dashboard\GoalControl`. Onedir is intentional: it avoids one-file extraction latency and keeps cold start inside the Contract budget. Do not move `GoalControl.exe` away from its `_internal` directory.
+`build_dashboard.ps1` creates an onedir windowed package at `dist\goal-dashboard\GoalControl`. Onedir is intentional: it avoids one-file extraction latency and keeps cold start inside the Contract budget. Do not move `GoalControl.exe` away from its `_internal` directory. Every build verifies the bundled schema hash and launches the packaged application in smoke mode. It uses the current global STATE when available and otherwise falls back to `fixtures\dashboard\clean-state.json`; `-SmokeStatePath` can select an explicit schema-valid STATE for release verification.
+
+The build fails if the bundled Goal STATE schema differs from the source schema. When
+`outputs\global\STATE.json` exists, it also launches the packaged executable in hidden
+smoke mode and requires a successful model load before reporting a successful build.
 
 Machine-readable smoke or benchmark output can be written even though the executable has no console:
 

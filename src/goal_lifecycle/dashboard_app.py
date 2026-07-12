@@ -1146,6 +1146,26 @@ def emit_result(payload: dict[str, object], probe_output: Path | None = None, *,
         print(text, file=sys.stderr if stderr else sys.stdout)
 
 
+def build_smoke_result(
+    *,
+    entries: int | None,
+    geometry: str,
+    state: str,
+    error: str | None,
+) -> tuple[dict[str, object], int]:
+    loaded = entries is not None
+    return (
+        {
+            "status": "passed" if loaded else "failed",
+            "entries": entries if loaded else 0,
+            "geometry": geometry,
+            "state": state,
+            "error": error,
+        },
+        0 if loaded else 2,
+    )
+
+
 def main() -> None:
     startup_started = time.perf_counter()
     args = build_parser().parse_args()
@@ -1164,17 +1184,16 @@ def main() -> None:
     app = DashboardApplication(root, state_path, startup_started=startup_started)
     if args.smoke:
         root.update_idletasks()
-        emit_result(
-            {
-                "status": "passed" if app.model is not None else "failed",
-                "entries": len(app.model.entries) if app.model else 0,
-                "geometry": root.geometry(),
-                "state": str(app.state_path),
-                "error": app.last_error,
-            },
-            args.probe_output,
+        payload, exit_code = build_smoke_result(
+            entries=len(app.model.entries) if app.model is not None else None,
+            geometry=root.geometry(),
+            state=str(app.state_path),
+            error=app.last_error,
         )
+        emit_result(payload, args.probe_output)
         root.destroy()
+        if exit_code:
+            raise SystemExit(exit_code)
         return
     root.mainloop()
 

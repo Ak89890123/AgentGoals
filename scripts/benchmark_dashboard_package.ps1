@@ -19,7 +19,10 @@ $quotedState = '"' + $state + '"'
 $coldStarts = @()
 1..$Iterations | ForEach-Object {
     $measurement = Measure-Command {
-        Start-Process -FilePath $exe -ArgumentList @("--state", $quotedState, "--smoke") -WindowStyle Hidden -Wait
+        $smoke = Start-Process -FilePath $exe -ArgumentList @("--state", $quotedState, "--smoke") -WindowStyle Hidden -PassThru -Wait
+        if ($smoke.ExitCode -ne 0) {
+            throw "Packaged dashboard smoke failed with exit code $($smoke.ExitCode)"
+        }
     }
     $coldStarts += $measurement.TotalMilliseconds
 }

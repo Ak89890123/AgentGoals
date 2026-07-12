@@ -25,6 +25,7 @@ from goal_lifecycle.dashboard import (
 from goal_lifecycle.dashboard_app import (
     DashboardApplication,
     build_parser,
+    build_smoke_result,
     dashboard_asset_path,
     discover_state_path,
     format_queue_position,
@@ -372,6 +373,34 @@ def test_packaged_validator_discovers_schema_under_runtime_root() -> None:
         (schema_dir / "goal-state.schema.json").write_text("{}", encoding="utf-8")
 
         assert resolve_schema_dir(temp_dir) == schema_dir.resolve()
+
+
+def test_smoke_result_fails_process_when_dashboard_state_cannot_load() -> None:
+    payload, exit_code = build_smoke_result(
+        entries=None,
+        geometry="1x1+0+0",
+        state="C:/repo/outputs/global/STATE.json",
+        error="schema mismatch",
+    )
+
+    assert exit_code == 2
+    assert payload["status"] == "failed"
+    assert payload["entries"] == 0
+    assert payload["error"] == "schema mismatch"
+
+
+def test_smoke_result_passes_only_after_dashboard_state_loads() -> None:
+    payload, exit_code = build_smoke_result(
+        entries=15,
+        geometry="1600x900+0+0",
+        state="C:/repo/outputs/global/STATE.json",
+        error=None,
+    )
+
+    assert exit_code == 0
+    assert payload["status"] == "passed"
+    assert payload["entries"] == 15
+    assert payload["error"] is None
 
 
 def test_responsive_layout_preserves_detail_width_on_compact_desktop() -> None:
