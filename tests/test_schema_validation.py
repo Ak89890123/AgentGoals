@@ -1,10 +1,14 @@
 import json
+import sys
+import uuid
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 import pytest
 
 from goal_lifecycle.reconcile import reconcile
-from goal_lifecycle.validate import validate_json_file, validate_registry, validate_state
+from goal_lifecycle.validate import resolve_schema_dir, validate_json_file, validate_registry, validate_state
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 
 
@@ -71,3 +75,25 @@ def test_state_schema_rejects_unknown_status() -> None:
 
     with pytest.raises(ValueError, match="unknown_status"):
         validate_json_file(invalid, schema)
+
+
+@contextmanager
+def schema_test_dir() -> Iterator[Path]:
+    path = Path(".tmp") / "schema-install-test" / uuid.uuid4().hex
+    path.mkdir(parents=True)
+    try:
+        yield path.resolve()
+    finally:
+        import shutil
+
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def test_schema_resolver_finds_installed_share_directory(monkeypatch) -> None:
+    with schema_test_dir() as prefix:
+        schema_dir = prefix / "share" / "goal-lifecycle" / "schemas"
+        schema_dir.mkdir(parents=True)
+        (schema_dir / "goal-state.schema.json").write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(sys, "prefix", str(prefix))
+
+        assert resolve_schema_dir(Path("C:/missing-runtime-root")) == schema_dir.resolve()

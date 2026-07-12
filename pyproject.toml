@@ -1,7 +1,12 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "goal-lifecycle"
+name = "goal-lifecycle-toolkit"
 version = "0.1.0"
 description = "Read-only Goal Contract lifecycle reconciliation harness"
+readme = "PACKAGE_README.md"
 requires-python = ">=3.11"
 dependencies = [
   "PyYAML>=6.0",
@@ -16,6 +21,15 @@ test = [
 desktop = [
   "pyinstaller>=6.0,<7.0",
 ]
+
+[project.scripts]
+goal-lifecycle = "goal_lifecycle.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/goal-lifecycle/schemas" = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

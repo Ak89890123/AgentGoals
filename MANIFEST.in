@@ -1,0 +1,6 @@
+include PACKAGE_README.md
+include pyproject.toml
+recursive-include src *.py
+recursive-include schemas *.json
+exclude README.md
+prune tests

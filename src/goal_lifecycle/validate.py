@@ -10,19 +10,19 @@ from jsonschema import Draft202012Validator
 
 
 def resolve_schema_dir(runtime_root: Path | None = None) -> Path:
-    roots = []
+    candidates: list[Path] = []
     if runtime_root is not None:
-        roots.append(runtime_root)
+        candidates.append((runtime_root / "schemas").resolve())
     else:
         bundled_root = getattr(sys, "_MEIPASS", None)
         if bundled_root:
-            roots.append(Path(bundled_root))
-        roots.append(Path(__file__).resolve().parents[2])
-    for root in roots:
-        candidate = (root / "schemas").resolve()
+            candidates.append((Path(bundled_root) / "schemas").resolve())
+        candidates.append((Path(__file__).resolve().parents[2] / "schemas").resolve())
+    candidates.append((Path(sys.prefix) / "share" / "goal-lifecycle" / "schemas").resolve())
+    for candidate in candidates:
         if (candidate / "goal-state.schema.json").is_file():
             return candidate
-    return (roots[-1] / "schemas").resolve()
+    return candidates[0]
 
 
 SCHEMA_DIR = resolve_schema_dir()

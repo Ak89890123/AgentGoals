@@ -36,6 +36,41 @@ The global registry patch is complete at `C:\Users\jimmy0302\.codex\goal-lifecyc
 
 Multi-repo onboarding is available as an explicit, dry-run-first command. It writes only inside the supplied repository after `--apply`, emits a global-registration proposal instead of applying it, and can verify an already-registered repo in a derived global aggregate. See `docs/onboarding.md`.
 
+## Portable CLI
+
+The distribution installs one stable executable, so normal onboarding needs only
+the absolute target repository path:
+
+```powershell
+goal-lifecycle --version
+goal-lifecycle doctor --json
+goal-lifecycle onboard --repo C:\devhome\legacy-repo --json
+goal-lifecycle onboard --repo C:\devhome\legacy-repo --apply --json
+```
+
+Dry-run is the default. `--apply` authorizes repo-local writes for that exact
+invocation and target only. The command never discovers repositories by scanning
+the disk and never edits a global registry.
+
+For a future GitHub release, install an immutable reviewed tag with either tool:
+
+```powershell
+uv tool install "goal-lifecycle-toolkit @ git+https://github.com/<OWNER>/<REPO>.git@v0.1.0"
+pipx install "goal-lifecycle-toolkit @ git+https://github.com/<OWNER>/<REPO>.git@v0.1.0"
+```
+
+Upgrade by installing a newer immutable tag. Roll back by reinstalling the prior
+tag, or remove the tool completely:
+
+```powershell
+uv tool uninstall goal-lifecycle-toolkit
+pipx uninstall goal-lifecycle-toolkit
+```
+
+`<OWNER>/<REPO>`, the project license, release tag, and artifact hashes are
+release-time inputs. Publishing to GitHub or PyPI requires a separate explicit
+approval and is not performed by this repository-local implementation.
+
 ## Python Setup
 
 Use a repo-local virtual environment:
@@ -106,9 +141,8 @@ Query the current global queue directly from registered repo STATE files without
 Check or apply onboarding for one explicit repository:
 
 ```powershell
-$env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --json
-.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --apply --json
+goal-lifecycle onboard --repo C:\devhome\legacy-repo --json
+goal-lifecycle onboard --repo C:\devhome\legacy-repo --apply --json
 ```
 
 Source scheduling metadata belongs in Contract frontmatter:
