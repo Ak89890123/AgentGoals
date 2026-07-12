@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.goal-lifecycle/schemas/doctor-result.schema.json",
+  "title": "Goal Lifecycle Doctor Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "route",
+    "toolkit_version",
+    "python_version",
+    "origin",
+    "failure_code",
+    "remediation"
+  ],
+  "properties": {
+    "version": {"const": 1},
+    "status": {"enum": ["ready", "action_required", "invalid"]},
+    "route": {"enum": ["override", "path", "developer_home", "module", "console_script"]},
+    "toolkit_version": {"type": "string", "minLength": 1},
+    "python_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "origin": {"type": "string", "minLength": 1},
+    "failure_code": {"type": ["string", "null"]},
+    "remediation": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action", "argv"],
+          "properties": {
+            "action": {
+              "enum": ["provide_release_coordinates", "install_supported_python", "reinstall_toolkit"]
+            },
+            "argv": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "ready"}}}, "then": {"properties": {"failure_code": {"type": "null"}, "remediation": {"type": "null"}}}},
+    {"if": {"properties": {"status": {"enum": ["action_required", "invalid"]}}}, "then": {"properties": {"failure_code": {"type": "string", "minLength": 1}, "remediation": {"type": "object"}}}}
+  ]
+}

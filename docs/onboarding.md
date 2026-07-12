@@ -20,13 +20,19 @@ It does not detect conversational intent, scan for repositories, edit global `.c
 
 ## Commands
 
-Set `PYTHONPATH` to this harness's `src` directory before running the module.
+Confirm that the portable executable and its packaged schemas are available:
+
+```powershell
+goal-lifecycle doctor --json
+```
+
+Normal use requires only an absolute target repository path. It does not require
+the user or LLM to know where the toolkit source checkout lives.
 
 Dry-run, which performs no writes:
 
 ```powershell
-$env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.onboard `
+goal-lifecycle onboard `
   --repo C:\devhome\legacy-repo `
   --json
 ```
@@ -34,7 +40,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 Apply repo-local onboarding:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.onboard `
+goal-lifecycle onboard `
   --repo C:\devhome\legacy-repo `
   --apply `
   --json
@@ -43,7 +49,7 @@ Apply repo-local onboarding:
 Verify an already-registered repository in a derived global aggregate:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.onboard `
+goal-lifecycle onboard `
   --repo C:\devhome\legacy-repo `
   --apply `
   --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
@@ -95,12 +101,25 @@ The command touches only its exact derived-output targets. Existing target STATE
 
 The proposal is data only. Applying it to the global `.codex` registry remains a separate proposal, independent review, explicit approval, patch, and verification action.
 
+## Developer Checkout Fallback
+
+Contributors working directly in this repository can exercise the same root CLI
+without installing the tool. This is a development fallback, not an onboarding
+requirement for users or LLMs:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle onboard `
+  --repo C:\devhome\legacy-repo `
+  --json
+```
+
 ## Recovery And Rollback Review
 
 Deferred rollback is deliberately non-destructive. A report stored in the target repository can be edited, so its hashes and `created` flags cannot prove that a canonical registry or STATE file was actually created by that run. The rollback command therefore validates and classifies candidates but never deletes files or directories.
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.onboard `
+goal-lifecycle onboard `
   --rollback-report C:\devhome\legacy-repo\outputs\goal-lifecycle\ONBOARDING.json `
   --json
 ```

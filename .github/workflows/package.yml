@@ -1,0 +1,61 @@
+name: package
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[test]"
+      - run: python -m pytest
+      - run: goal-lifecycle --version
+      - run: goal-lifecycle doctor --json
+
+  package-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip build twine pipx uv
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - name: Reject machine-local paths and bundled virtual environments
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          wheel = next(Path("dist").glob("*.whl"))
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+              assert not any(".venv" in name for name in names)
+              for name in names:
+                  data = archive.read(name).lower()
+                  assert b"c:\\devhome" not in data
+                  assert b"c:\\users\\" not in data
+                  assert b"/home/runner/" not in data
+          PY
+      - run: pipx install dist/*.whl
+      - run: goal-lifecycle --version
+      - run: goal-lifecycle doctor --json
+      - run: pipx uninstall goal-lifecycle-toolkit
+      - run: uv tool install dist/*.whl
+      - run: goal-lifecycle --version
+      - run: goal-lifecycle doctor --json
