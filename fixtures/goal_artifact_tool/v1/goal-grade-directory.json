@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "goal_id": "fixture-goal-grade",
+  "title": "Fixture Goal Grade",
+  "project": "fixture-project",
+  "owner": "engineering",
+  "date": "2026-07-11",
+  "size": "goal_grade",
+  "layout": "directory",
+  "file_write": true,
+  "review_required": true
+}

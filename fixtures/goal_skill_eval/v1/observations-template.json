@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "manifest_version": 1,
+  "skill_sha256": "f8256fde7511cac2481bc27181c19ebac84cf67960064ce23ae5a7f8e40fce83",
+  "observation_source": "model_runtime",
+  "runtime": {
+    "provider": "record the model/runtime used here",
+    "notes": "Populate one observation for every manifest case and repeat runs to measure variance."
+  },
+  "runs": []
+}

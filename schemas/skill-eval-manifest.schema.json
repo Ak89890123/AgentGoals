@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Goal Skill Evaluation Manifest",
+  "type": "object",
+  "required": ["version", "kind", "skill", "rubric_version", "thresholds", "cases"],
+  "properties": {
+    "version": {"type": "integer", "const": 1},
+    "kind": {"type": "string", "const": "goal_skill_behavior_eval"},
+    "skill": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+      "additionalProperties": false
+    },
+    "rubric_version": {"type": "string", "minLength": 1},
+    "thresholds": {
+      "type": "object",
+      "required": ["trigger_precision_min", "trigger_recall_min", "decision_accuracy_min"],
+      "properties": {
+        "trigger_precision_min": {"type": "number", "minimum": 0, "maximum": 1},
+        "trigger_recall_min": {"type": "number", "minimum": 0, "maximum": 1},
+        "decision_accuracy_min": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["id", "language", "category", "prompt", "expected"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "language": {"enum": ["zh_TW", "en"]},
+          "category": {"enum": ["positive", "negative", "ambiguous", "adversarial"]},
+          "prompt": {"type": "string", "minLength": 1},
+          "expected": {
+            "type": "object",
+            "required": ["trigger", "size", "output_mode", "file_write", "review_required", "reference_loads"],
+            "properties": {
+              "trigger": {"type": "boolean"},
+              "size": {"enum": ["none", "small", "standard", "goal_grade"]},
+              "output_mode": {"enum": ["none", "chat", "single_file", "directory"]},
+              "file_write": {"type": "boolean"},
+              "review_required": {"type": "boolean"},
+              "reference_loads": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

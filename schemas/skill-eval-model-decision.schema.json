@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["trigger", "size", "output_mode", "file_write", "review_required"],
+  "properties": {
+    "trigger": {"type": "boolean"},
+    "size": {"enum": ["none", "small", "standard", "goal_grade"]},
+    "output_mode": {"enum": ["none", "chat", "single_file", "directory"]},
+    "file_write": {"type": "boolean"},
+    "review_required": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,557 @@
+{
+  "version": 1,
+  "manifest_version": 1,
+  "skill_sha256": "f8256fde7511cac2481bc27181c19ebac84cf67960064ce23ae5a7f8e40fce83",
+  "observation_source": "model_runtime",
+  "runtime": {
+    "command": "C:\\devhome\\codex.CMD",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "high",
+    "mode": "isolated_codex_exec"
+  },
+  "runs": [
+    {
+      "id": "run-1",
+      "observations": [
+        {
+          "case_id": "zh-small-acceptance",
+          "trigger": true,
+          "size": "small",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-standard-contract",
+          "trigger": true,
+          "size": "standard",
+          "output_mode": "single_file",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-1/zh-standard-contract/artifacts/login-retry-goal-contract.md"
+          ]
+        },
+        {
+          "case_id": "zh-goal-grade-migration",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-1/zh-goal-grade-migration/artifacts/database-migration-preflight/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-1/zh-goal-grade-migration/artifacts/database-migration-preflight/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-1/zh-goal-grade-migration/artifacts/database-migration-preflight/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "zh-no-direct-global-patch",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-1/zh-no-direct-global-patch/artifacts/global-goal-preflight-edit/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-1/zh-no-direct-global-patch/artifacts/global-goal-preflight-edit/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-1/zh-no-direct-global-patch/artifacts/global-goal-preflight-edit/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "en-small-criteria",
+          "trigger": true,
+          "size": "small",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-standard-handoff",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-1/en-standard-handoff/artifacts/bounded-feature-handoff/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-1/en-standard-handoff/artifacts/bounded-feature-handoff/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-1/en-standard-handoff/artifacts/bounded-feature-handoff/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "en-goal-grade-routing",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-cross-repo-handoff",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-1/en-cross-repo-handoff/artifacts/cross-repository-migration-handoff/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-1/en-cross-repo-handoff/artifacts/cross-repository-migration-handoff/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-1/en-cross-repo-handoff/artifacts/cross-repository-migration-handoff/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "zh-routine-bugfix",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-explain-code",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-no-write-summary",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-ui-copy",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-routine-test",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-explain-command",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-no-goal-rename",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-ui-spacing",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        }
+      ]
+    },
+    {
+      "id": "run-2",
+      "observations": [
+        {
+          "case_id": "zh-small-acceptance",
+          "trigger": true,
+          "size": "small",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-standard-contract",
+          "trigger": true,
+          "size": "standard",
+          "output_mode": "single_file",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-2/zh-standard-contract/artifacts/login-retry-goal-contract.md"
+          ]
+        },
+        {
+          "case_id": "zh-goal-grade-migration",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-2/zh-goal-grade-migration/artifacts/database-migration-preflight/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-2/zh-goal-grade-migration/artifacts/database-migration-preflight/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-2/zh-goal-grade-migration/artifacts/database-migration-preflight/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "zh-no-direct-global-patch",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-2/zh-no-direct-global-patch/artifacts/goal-preflight-global-skill/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-2/zh-no-direct-global-patch/artifacts/goal-preflight-global-skill/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-2/zh-no-direct-global-patch/artifacts/goal-preflight-global-skill/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "en-small-criteria",
+          "trigger": true,
+          "size": "small",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-standard-handoff",
+          "trigger": true,
+          "size": "standard",
+          "output_mode": "single_file",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-goal-grade-routing",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-cross-repo-handoff",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-routine-bugfix",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-explain-code",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-no-write-summary",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-ui-copy",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-routine-test",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-explain-command",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-no-goal-rename",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-ui-spacing",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        }
+      ]
+    },
+    {
+      "id": "run-3",
+      "observations": [
+        {
+          "case_id": "zh-small-acceptance",
+          "trigger": true,
+          "size": "small",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-standard-contract",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-3/zh-standard-contract/artifacts/login-retry/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-3/zh-standard-contract/artifacts/login-retry/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-3/zh-standard-contract/artifacts/login-retry/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "zh-goal-grade-migration",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-3/zh-goal-grade-migration/artifacts/database-migration-preflight/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-3/zh-goal-grade-migration/artifacts/database-migration-preflight/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-3/zh-goal-grade-migration/artifacts/database-migration-preflight/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "zh-no-direct-global-patch",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-3/zh-no-direct-global-patch/artifacts/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-3/zh-no-direct-global-patch/artifacts/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-3/zh-no-direct-global-patch/artifacts/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "en-small-criteria",
+          "trigger": true,
+          "size": "small",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-standard-handoff",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "chat",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-goal-grade-routing",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": true,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-3/en-goal-grade-routing/artifacts/global-agent-routing/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-3/en-goal-grade-routing/artifacts/global-agent-routing/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-3/en-goal-grade-routing/artifacts/global-agent-routing/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "en-cross-repo-handoff",
+          "trigger": true,
+          "size": "goal_grade",
+          "output_mode": "directory",
+          "file_write": true,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": [
+            "runtime-artifacts/workspaces/run-3/en-cross-repo-handoff/artifacts/cross-repository-migration/CONTRACT.md",
+            "runtime-artifacts/workspaces/run-3/en-cross-repo-handoff/artifacts/cross-repository-migration/EVIDENCE.md",
+            "runtime-artifacts/workspaces/run-3/en-cross-repo-handoff/artifacts/cross-repository-migration/PLAN.md"
+          ]
+        },
+        {
+          "case_id": "zh-routine-bugfix",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-explain-code",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-no-write-summary",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "zh-ui-copy",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-routine-test",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-explain-command",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-no-goal-rename",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        },
+        {
+          "case_id": "en-ui-spacing",
+          "trigger": false,
+          "size": "none",
+          "output_mode": "none",
+          "file_write": false,
+          "review_required": false,
+          "reference_loads": [],
+          "artifact_paths": []
+        }
+      ]
+    }
+  ]
+}

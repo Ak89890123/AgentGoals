@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "goal_id": "fixture-small",
+  "title": "Fixture Small",
+  "project": "fixture-project",
+  "owner": "engineering",
+  "date": "2026-07-11",
+  "size": "small",
+  "layout": "none",
+  "file_write": false,
+  "review_required": false
+}

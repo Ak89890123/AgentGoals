@@ -21,3 +21,13 @@ Fixtures should cover:
 - status/folder mismatch
 - missing evidence
 - parse error
+
+`goal_skill_eval/v1/manifest.json` is a versioned bilingual behavior-evaluation
+dataset for `goal-preflight`. Its observations template deliberately contains no
+model results: fill it only with recorded runtime observations, then score it
+with `python -m goal_lifecycle.skill_eval`.
+
+`goal_artifact_tool/v1/` is a versioned, synthetic decision fixture set for the
+deterministic Goal scaffold tool. It validates the no-write, single-file,
+directory, and rejected-layout paths without introducing Goal-shaped source
+files under a scanned `goals/` directory.

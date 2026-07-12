@@ -61,7 +61,10 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 .\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry/REGISTRY.json --out outputs
 ```
 
-The command scans only registered roots, reads Goal Contract / PLAN / EVIDENCE frontmatter, and writes derived `outputs/STATE.json` and `outputs/STATE.md`.
+The command scans only registered roots, reads directory-mode `CONTRACT.md` files
+and standard `*-goal-contract.md` files (plus related PLAN / EVIDENCE
+frontmatter where present), and writes derived `outputs/STATE.json` and
+`outputs/STATE.md`.
 
 Validate registry and STATE JSON:
 
@@ -192,6 +195,55 @@ Performance checks:
 ```
 
 See `docs/usage.md` for packaging, probe, filtering, responsive layout, and recovery behavior.
+
+## Goal Skill Behavior Evaluation
+
+The versioned `goal-preflight` evaluation dataset is intentionally separate from
+the global Skill. Validate its fixture/rubric, or score recorded model-runtime
+observations, without modifying the Skill:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.skill_eval `
+  --manifest fixtures\goal_skill_eval\v1\manifest.json
+```
+
+The command exits `2` until complete model-runtime observations are supplied.
+This is deliberate: a fixture/rubric self-check is not a semantic model baseline.
+
+To inspect the isolated runtime plan without model calls:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.skill_eval_runtime `
+  --manifest fixtures\goal_skill_eval\v1\manifest.json `
+  --out .tmp\goal-skill-eval
+```
+
+Actual model runs require both `--execute` and `--confirm-model-runtime`; they
+write only their isolated fixture workspaces under `--out` and then produce
+`observations.json` for the scorer.
+
+## 2026-07-12 Session Wrap-Up
+
+**Done**
+
+- Added repo-local deterministic artifact scaffolding with preview-first apply,
+  SQLite audit receipts, explicit pending recovery, and subprocess E2E smoke
+  coverage.
+- Integrated the reviewed Deterministic Artifact Tool subsection into the
+  global `goal-preflight` Skill; the original is backed up beside it.
+- Verified 190 tests passed (one Windows symlink test skipped).
+
+**WIP**
+
+- No remaining WIP for the Goal Preflight Artifact Tooling goal. Existing
+  unrelated evaluation and dashboard changes remain uncommitted in this
+  worktree.
+
+**Next**
+
+- Commit only after selecting the intended coherent change set; do not push
+  automatically.
 
 ## Non-goals
 
