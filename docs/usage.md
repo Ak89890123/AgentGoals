@@ -24,8 +24,8 @@ goals/<status>/<subject>-goal-contract.md
 2. Keep machine-readable status values in lowercase snake_case.
 3. Put adjustable priority and hard dependencies in Contract `scheduling` metadata.
 4. Register only intentional goal roots in `registry/REGISTRY.json`.
-5. Run reconcile.
-6. Run schema validation.
+5. For local-only diagnostics, run reconcile and schema validation.
+6. For a Dashboard/global refresh, run the deterministic orchestrator with `--global-registry --require-global`.
 7. Treat STATE issues as review prompts, not automatic source-file changes.
 
 PowerShell:
@@ -35,6 +35,20 @@ $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 $env:PYTHONPATH=(Resolve-Path src).Path
 .\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry\REGISTRY.json --out outputs
 .\.venv\Scripts\python -m goal_lifecycle.validate --registry registry\REGISTRY.json --state outputs\STATE.json
+```
+
+Global refresh, with one bounded command that chains local reconcile, local validation,
+global aggregation, global validation, operation-ID matching, timestamp ordering, and
+canonical Goal-key visibility:
+
+```powershell
+\.\.venv\Scripts\python -m goal_lifecycle.run `
+  --registry registry\REGISTRY.json `
+  --out outputs `
+  --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --global-out outputs\global `
+  --require-global `
+  --json
 ```
 
 Run tests before committing harness changes:
@@ -125,7 +139,8 @@ To continue through the registered global STATE:
   --registry registry\REGISTRY.json `
   --out outputs `
   --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
-  --global-out outputs\global
+  --global-out outputs\global `
+  --require-global
 ```
 
 Add `--json` to emit a compact machine summary. Actual output always contains all four stages; this abbreviated example shows the stable field shape for one stage:
@@ -133,6 +148,7 @@ Add `--json` to emit a compact machine summary. Actual output always contains al
 ```json
 {
   "version": 1,
+  "operation_id": "<pipeline-operation-id>",
   "status": "passed",
   "exit_code": 0,
   "stages": [
@@ -148,7 +164,12 @@ Add `--json` to emit a compact machine summary. Actual output always contains al
 }
 ```
 
-Stage status values are `passed`, `issues`, `failed`, and `skipped`. A failed stage skips dependent later stages. Global stages are also skipped, without failure, when no global registry is supplied.
+Stage status values are `passed`, `issues`, `failed`, and `skipped`. A failed stage skips dependent later stages. Without `--require-global`, no global registry means an intentional local-only run and global stages are skipped. With `--require-global`, a missing global registry fails before local derived outputs are written.
+
+The global validation stage also requires the local and global STATE files to share the
+same `operation_id`, requires global `generated_at` to be no earlier than local
+`generated_at`, and requires all local canonical Goal IDs to be visible under the
+registered global root ID. Local IDs may be rebased during aggregation.
 
 Exit codes:
 

@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import yaml
 
@@ -77,7 +78,12 @@ def load_registry(path: Path) -> list[RegistryRoot]:
     return roots
 
 
-def reconcile(registry_path: Path, out_dir: Path, evaluation_date: date | None = None) -> list[StateEntry]:
+def reconcile(
+    registry_path: Path,
+    out_dir: Path,
+    evaluation_date: date | None = None,
+    operation_id: str | None = None,
+) -> list[StateEntry]:
     registry_data = json.loads(registry_path.read_text(encoding="utf-8"))
     policy = normalize_health_policy(registry_data.get("health_policy"))
     evaluated_on = evaluation_date or datetime.now(timezone.utc).date()
@@ -89,7 +95,7 @@ def reconcile(registry_path: Path, out_dir: Path, evaluation_date: date | None =
 
     queue = apply_scheduling(entries, strict_missing=False)
     entries.sort(key=lambda entry: (entry.scheduling["queue_position"] is None, entry.scheduling["queue_position"] or 0, entry.goal_key))
-    write_outputs(entries, out_dir, queue)
+    write_outputs(entries, out_dir, queue, operation_id=operation_id or uuid4().hex)
     return entries
 
 
@@ -288,10 +294,17 @@ def parse_error_entry(path: Path, folder_name: str, root: RegistryRoot, exc: Exc
     )
 
 
-def write_outputs(entries: list[StateEntry], out_dir: Path, queue: dict[str, Any]) -> None:
+def write_outputs(
+    entries: list[StateEntry],
+    out_dir: Path,
+    queue: dict[str, Any],
+    *,
+    operation_id: str,
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 2,
+        "operation_id": operation_id,
         "generated_at": now_iso(),
         "queue": queue,
         "entries": [asdict(entry) for entry in entries],

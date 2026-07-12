@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import goal_lifecycle.run as run_module
@@ -88,6 +89,173 @@ def test_run_pipeline_completes_optional_global_sequence() -> None:
     assert summary.stages[2].entry_count == 1
     assert Path(str(summary.stages[3].output_path)).exists()
     assert global_registry.read_text(encoding="utf-8") == registry_before
+
+
+def test_run_pipeline_requires_global_registry_for_explicit_global_refresh() -> None:
+    workspace = make_workspace("run-require-global")
+    write_goal(workspace, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+    out_dir = workspace / "outputs"
+
+    summary = run_pipeline(
+        registry,
+        out_dir,
+        operation_id="operation-required",
+        require_global=True,
+    )
+
+    assert summary.operation_id == "operation-required"
+    assert summary.status == "failed"
+    assert summary.exit_code == 1
+    assert stage_statuses(summary) == ["skipped", "skipped", "failed", "skipped"]
+    assert "Global registry is required" in str(summary.stages[2].message)
+    assert not (out_dir / "STATE.json").exists()
+
+
+def test_run_pipeline_propagates_operation_id_and_verifies_global_visibility() -> None:
+    workspace = make_workspace("run-operation-id")
+    write_goal(workspace, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+    global_registry = workspace / "global" / "REGISTRY.json"
+    write_global_registry(
+        global_registry,
+        [global_root(workspace, "repo-one", workspace / "outputs" / "STATE.json")],
+    )
+    operation_id = "operation-shared"
+
+    summary = run_pipeline(
+        registry,
+        workspace / "outputs",
+        global_registry_path=global_registry,
+        global_out_dir=workspace / "global-out",
+        operation_id=operation_id,
+        require_global=True,
+    )
+
+    assert summary.status == "passed"
+    assert summary.operation_id == operation_id
+    local_payload = json.loads((workspace / "outputs" / "STATE.json").read_text(encoding="utf-8"))
+    global_payload = json.loads((workspace / "global-out" / "STATE.json").read_text(encoding="utf-8"))
+    assert local_payload["operation_id"] == operation_id
+    assert global_payload["operation_id"] == operation_id
+    assert global_payload["generated_at"] >= local_payload["generated_at"]
+    assert {f"repo-one/{item['id']}" for item in local_payload["entries"]} <= {
+        item["goal_key"] for item in global_payload["entries"]
+    }
+
+
+def test_run_pipeline_rejects_global_operation_id_mismatch(monkeypatch) -> None:
+    workspace = make_workspace("run-operation-id-mismatch")
+    write_goal(workspace, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+    global_registry = workspace / "global" / "REGISTRY.json"
+    global_out = workspace / "global-out"
+    write_global_registry(
+        global_registry,
+        [global_root(workspace, "repo-one", workspace / "outputs" / "STATE.json")],
+    )
+    real_aggregate = run_module.aggregate
+
+    def aggregate_with_mismatched_operation(registry_path, out_dir, operation_id=None):
+        entries = real_aggregate(registry_path, out_dir, operation_id=operation_id)
+        path = out_dir / "STATE.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["operation_id"] = "different-operation"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return entries
+
+    monkeypatch.setattr(run_module, "aggregate", aggregate_with_mismatched_operation)
+
+    summary = run_pipeline(
+        registry,
+        workspace / "outputs",
+        global_registry_path=global_registry,
+        global_out_dir=global_out,
+        operation_id="expected-operation",
+        require_global=True,
+    )
+
+    assert summary.status == "failed"
+    assert summary.stages[3].status == "failed"
+    assert "Global STATE operation_id" in str(summary.stages[3].message)
+
+
+def test_run_pipeline_rejects_global_state_generated_before_local(monkeypatch) -> None:
+    workspace = make_workspace("run-global-before-local")
+    write_goal(workspace, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+    global_registry = workspace / "global" / "REGISTRY.json"
+    global_out = workspace / "global-out"
+    write_global_registry(
+        global_registry,
+        [global_root(workspace, "repo-one", workspace / "outputs" / "STATE.json")],
+    )
+    real_aggregate = run_module.aggregate
+
+    def aggregate_with_stale_timestamp(registry_path, out_dir, operation_id=None):
+        entries = real_aggregate(registry_path, out_dir, operation_id=operation_id)
+        path = out_dir / "STATE.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["generated_at"] = "2000-01-01T00:00:00+00:00"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return entries
+
+    monkeypatch.setattr(run_module, "aggregate", aggregate_with_stale_timestamp)
+
+    summary = run_pipeline(
+        registry,
+        workspace / "outputs",
+        global_registry_path=global_registry,
+        global_out_dir=global_out,
+        operation_id="timestamp-operation",
+        require_global=True,
+    )
+
+    assert summary.status == "failed"
+    assert summary.stages[3].status == "failed"
+    assert "generated before local" in str(summary.stages[3].message)
+
+
+def test_run_pipeline_rejects_global_state_missing_local_goal_key(monkeypatch) -> None:
+    workspace = make_workspace("run-global-key-mismatch")
+    write_goal(workspace, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    registry = workspace / "registry" / "REGISTRY.json"
+    write_registry(registry, workspace / "goals")
+    global_registry = workspace / "global" / "REGISTRY.json"
+    global_out = workspace / "global-out"
+    write_global_registry(
+        global_registry,
+        [global_root(workspace, "repo-one", workspace / "outputs" / "STATE.json")],
+    )
+    real_aggregate = run_module.aggregate
+
+    def aggregate_without_local_goal(registry_path, out_dir, operation_id=None):
+        entries = real_aggregate(registry_path, out_dir, operation_id=operation_id)
+        path = out_dir / "STATE.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["entries"] = []
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return entries
+
+    monkeypatch.setattr(run_module, "aggregate", aggregate_without_local_goal)
+
+    summary = run_pipeline(
+        registry,
+        workspace / "outputs",
+        global_registry_path=global_registry,
+        global_out_dir=global_out,
+        operation_id="operation-key-check",
+        require_global=True,
+    )
+
+    assert summary.status == "failed"
+    assert summary.exit_code == 1
+    assert summary.stages[3].status == "failed"
+    assert "canonical Goal keys" in str(summary.stages[3].message)
 
 
 def test_run_pipeline_returns_two_when_global_state_contains_issues() -> None:
@@ -210,7 +378,7 @@ def test_run_pipeline_calls_apis_in_deterministic_order(monkeypatch) -> None:
     monkeypatch.setattr(
         run_module,
         "reconcile",
-        lambda registry, out: calls.append("reconcile") or [],
+        lambda registry, out, **kwargs: calls.append("reconcile") or [],
     )
     monkeypatch.setattr(
         run_module,
@@ -222,10 +390,11 @@ def test_run_pipeline_calls_apis_in_deterministic_order(monkeypatch) -> None:
         calls.append("validate_local" if path == local_out / "STATE.json" else "validate_global")
 
     monkeypatch.setattr(run_module, "validate_state", record_validate)
+    monkeypatch.setattr(run_module, "verify_global_refresh", lambda *args, **kwargs: calls.append("verify_global"))
     monkeypatch.setattr(
         run_module,
         "aggregate",
-        lambda registry, out: calls.append("aggregate") or [],
+        lambda registry, out, **kwargs: calls.append("aggregate") or [],
     )
 
     summary = run_pipeline(
@@ -236,4 +405,4 @@ def test_run_pipeline_calls_apis_in_deterministic_order(monkeypatch) -> None:
     )
 
     assert summary.exit_code == 0
-    assert calls == ["reconcile", "validate_registry", "validate_local", "aggregate", "validate_global"]
+    assert calls == ["reconcile", "validate_registry", "validate_local", "aggregate", "validate_global", "verify_global"]

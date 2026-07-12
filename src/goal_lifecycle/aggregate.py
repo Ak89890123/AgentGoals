@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from jsonschema import Draft202012Validator
 
@@ -33,9 +34,13 @@ class GlobalRegistryRoot:
     active: bool
 
 
-def aggregate(global_registry_path: Path, out_dir: Path) -> list[StateEntry]:
+def aggregate(
+    global_registry_path: Path,
+    out_dir: Path,
+    operation_id: str | None = None,
+) -> list[StateEntry]:
     entries, queue = aggregate_entries(global_registry_path)
-    write_outputs(entries, out_dir, queue)
+    write_outputs(entries, out_dir, queue, operation_id=operation_id or uuid4().hex)
     return entries
 
 
@@ -211,10 +216,17 @@ def aggregate_issue_entry(
     )
 
 
-def write_outputs(entries: list[StateEntry], out_dir: Path, queue: dict[str, Any]) -> None:
+def write_outputs(
+    entries: list[StateEntry],
+    out_dir: Path,
+    queue: dict[str, Any],
+    *,
+    operation_id: str,
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 2,
+        "operation_id": operation_id,
         "generated_at": now_iso(),
         "queue": queue,
         "entries": [asdict(entry) for entry in entries],
