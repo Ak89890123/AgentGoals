@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "goal_id": "fixture-invalid",
+  "title": "Fixture Invalid",
+  "project": "fixture-project",
+  "owner": "engineering",
+  "date": "2026-07-11",
+  "size": "small",
+  "layout": "none",
+  "file_write": true,
+  "review_required": false
+}

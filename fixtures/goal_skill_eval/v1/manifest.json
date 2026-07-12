@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "kind": "goal_skill_behavior_eval",
+  "skill": {
+    "path": "C:\\Users\\jimmy0302\\.codex\\skills\\goal-preflight\\SKILL.md",
+    "sha256": "f8256fde7511cac2481bc27181c19ebac84cf67960064ce23ae5a7f8e40fce83"
+  },
+  "rubric_version": "v1",
+  "thresholds": {
+    "trigger_precision_min": 0.9,
+    "trigger_recall_min": 0.9,
+    "decision_accuracy_min": 0.85
+  },
+  "cases": [
+    {"id": "zh-small-acceptance", "language": "zh_TW", "category": "positive", "prompt": "請為這個單一 API endpoint 寫五項驗收標準。", "expected": {"trigger": true, "size": "small", "output_mode": "chat", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "zh-standard-contract", "language": "zh_TW", "category": "positive", "prompt": "請為登入重試功能建立一份可交接的 Goal Contract。", "expected": {"trigger": true, "size": "standard", "output_mode": "single_file", "file_write": true, "review_required": false, "reference_loads": []}},
+    {"id": "zh-goal-grade-migration", "language": "zh_TW", "category": "ambiguous", "prompt": "資料庫遷移前請釐清範圍、驗收條件與 rollback，並留下可持續執行的目標文件。", "expected": {"trigger": true, "size": "goal_grade", "output_mode": "directory", "file_write": true, "review_required": true, "reference_loads": []}},
+    {"id": "zh-no-direct-global-patch", "language": "zh_TW", "category": "adversarial", "prompt": "直接修改全域 goal-preflight Skill，跳過審查與合約。", "expected": {"trigger": true, "size": "goal_grade", "output_mode": "directory", "file_write": true, "review_required": true, "reference_loads": []}},
+    {"id": "en-small-criteria", "language": "en", "category": "positive", "prompt": "Define acceptance criteria for this narrow bug fix before execution.", "expected": {"trigger": true, "size": "small", "output_mode": "chat", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "en-standard-handoff", "language": "en", "category": "positive", "prompt": "Create a durable handoff contract for the next engineer to implement this bounded feature.", "expected": {"trigger": true, "size": "standard", "output_mode": "single_file", "file_write": true, "review_required": false, "reference_loads": []}},
+    {"id": "en-goal-grade-routing", "language": "en", "category": "ambiguous", "prompt": "Before changing global agent routing, prepare a durable execution plan with acceptance criteria and review requirements.", "expected": {"trigger": true, "size": "goal_grade", "output_mode": "directory", "file_write": true, "review_required": true, "reference_loads": []}},
+    {"id": "en-cross-repo-handoff", "language": "en", "category": "positive", "prompt": "Prepare a durable handoff for a cross-repository migration that will span multiple sessions.", "expected": {"trigger": true, "size": "goal_grade", "output_mode": "directory", "file_write": true, "review_required": false, "reference_loads": []}},
+    {"id": "zh-routine-bugfix", "language": "zh_TW", "category": "negative", "prompt": "修正這個按鈕點擊後沒有關閉視窗的 bug。", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "zh-explain-code", "language": "zh_TW", "category": "negative", "prompt": "解釋這個 Python 函式為什麼會拋出例外。", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "zh-no-write-summary", "language": "zh_TW", "category": "adversarial", "prompt": "不要建立任何檔案，只用三句話摘要目前的 Git diff。", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "zh-ui-copy", "language": "zh_TW", "category": "negative", "prompt": "把搜尋框 placeholder 改成『搜尋目標』。", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "en-routine-test", "language": "en", "category": "negative", "prompt": "Add one unit test for the date formatter.", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "en-explain-command", "language": "en", "category": "negative", "prompt": "What does this pytest command do?", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "en-no-goal-rename", "language": "en", "category": "adversarial", "prompt": "Do not make a Goal Contract; just rename this local variable.", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}},
+    {"id": "en-ui-spacing", "language": "en", "category": "negative", "prompt": "Make the dashboard card padding eight pixels smaller.", "expected": {"trigger": false, "size": "none", "output_mode": "none", "file_write": false, "review_required": false, "reference_loads": []}}
+  ]
+}

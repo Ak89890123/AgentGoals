@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Goal Artifact Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "goal_id", "title", "project", "owner", "date", "size", "layout", "file_write", "review_required"],
+  "properties": {
+    "version": {"const": 1},
+    "goal_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "title": {"type": "string", "minLength": 1},
+    "project": {"type": "string", "minLength": 1},
+    "owner": {"type": "string", "minLength": 1},
+    "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "size": {"enum": ["small", "standard", "goal_grade"]},
+    "layout": {"enum": ["none", "single_file", "directory"]},
+    "file_write": {"type": "boolean"},
+    "review_required": {"type": "boolean"}
+  },
+  "allOf": [
+    {"if": {"properties": {"size": {"const": "small"}}}, "then": {"anyOf": [{"properties": {"layout": {"const": "none"}, "file_write": {"const": false}}}, {"properties": {"layout": {"const": "single_file"}, "file_write": {"const": true}}}]}},
+    {"if": {"properties": {"size": {"const": "standard"}}}, "then": {"properties": {"layout": {"const": "single_file"}, "file_write": {"const": true}}}},
+    {"if": {"properties": {"size": {"const": "goal_grade"}}}, "then": {"anyOf": [{"properties": {"layout": {"const": "single_file"}, "file_write": {"const": true}}}, {"properties": {"layout": {"const": "directory"}, "file_write": {"const": true}}}]}}
+  ]
+}

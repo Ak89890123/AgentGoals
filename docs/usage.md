@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use this harness to rebuild a derived Goal STATE from registered Goal Contract directories.
+Use this harness to rebuild a derived Goal STATE from registered Goal Contract files.
 
 The source of truth remains:
 
@@ -11,6 +11,9 @@ goals/<status>/<goal-id>/
   CONTRACT.md
   PLAN.md
   EVIDENCE.md
+
+# or a standard single-file Goal Contract
+goals/<status>/<subject>-goal-contract.md
 ```
 
 `outputs/STATE.json` and `outputs/STATE.md` are generated dashboards only.
@@ -39,6 +42,71 @@ Run tests before committing harness changes:
 ```powershell
 $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 .\.venv\Scripts\python -m pytest
+```
+
+## Deterministic Goal Artifact Tool
+
+`goal_lifecycle.artifact_tool` materializes an already-decided Goal layout; it
+does not classify work, infer scope, or grant write permission. It defaults to
+a no-write preview and reports only target paths, actions, and SHA-256 hashes.
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python -m goal_lifecycle.artifact_tool `
+  --repo-root <absolute-repository-root> `
+  --artifact-root <repository-contained-output-root> `
+  --decision <artifact-decision.json>
+```
+
+After the preview has been reviewed and the user has explicitly authorized the
+exact target root, add `--apply`. Add `--audit` only when a local, hash-only
+SQLite receipt is required. It is stored at
+`<repo>/.goal-lifecycle/artifact-audit.sqlite`, never under `goals/`, and is
+ignored by Git. Receipts contain only receipt/Goal IDs, operation status,
+timestamps, file counts, error class, repo-relative paths, actions, and SHA-256
+values — never generated Goal content. The command reports the audit database as
+a repo-relative path, rejects paths outside the repository root, incompatible
+size/layout decisions, and existing artifact targets. Do not invoke it from the
+global Skill until the separate integration proposal and review gate have passed.
+
+If an apply created valid files but the final SQLite update was interrupted,
+first inspect the pending receipt, then explicitly finalize it with a hash-only
+result payload after independently confirming those files are the intended
+artifacts:
+
+```powershell
+python -m goal_lifecycle.artifact_audit --repo-root <repo> --list-receipts --goal-id <goal-id>
+python -m goal_lifecycle.artifact_audit --repo-root <repo> --finalize-pending <receipt-id> --result <hash-only-result.json>
+```
+
+Finalization rereads every listed artifact and refuses to close the receipt if
+any SHA-256 value differs. It never deletes files or repairs a receipt
+automatically.
+
+An audit receipt is first stored as `pending`, then finalized as `applied` or
+`failed`. A pending receipt means the artifact may exist but its audit
+finalization was interrupted; inspect it before retrying. Legacy JSONL receipts
+are imported only by an explicit command and are never deleted automatically:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.artifact_audit `
+  --repo-root <absolute-repository-root> `
+  --import-legacy <legacy-receipts.jsonl>
+```
+
+Query receipts without writing anything:
+
+```powershell
+.\.venv\Scripts\python -m goal_lifecycle.artifact_audit `
+  --repo-root <absolute-repository-root> `
+  --list-receipts --goal-id <goal-id>
+```
+
+Benchmark receipt storage with a repeatable local comparison:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path src).Path
+.\.venv\Scripts\python scripts\benchmark_artifact_audit.py --iterations 100
 ```
 
 ## Deterministic Operator Flow

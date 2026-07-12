@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "goal_id": "fixture-standard",
+  "title": "Fixture Standard",
+  "project": "fixture-project",
+  "owner": "engineering",
+  "date": "2026-07-11",
+  "size": "standard",
+  "layout": "single_file",
+  "file_write": true,
+  "review_required": false
+}

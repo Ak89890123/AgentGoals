@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Goal Skill Evaluation Observations",
+  "type": "object",
+  "required": ["version", "manifest_version", "skill_sha256", "observation_source", "runs"],
+  "properties": {
+    "version": {"type": "integer", "const": 1},
+    "manifest_version": {"type": "integer", "const": 1},
+    "skill_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "observation_source": {"enum": ["model_runtime", "manual_annotation"]},
+    "runtime": {"type": "object"},
+    "runs": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["id", "observations"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "observations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["case_id", "trigger", "size", "output_mode", "file_write", "review_required", "reference_loads"],
+              "properties": {
+                "case_id": {"type": "string"},
+                "trigger": {"type": "boolean"},
+                "size": {"enum": ["none", "small", "standard", "goal_grade"]},
+                "output_mode": {"enum": ["none", "chat", "single_file", "directory"]},
+                "file_write": {"type": "boolean"},
+                "review_required": {"type": "boolean"},
+                "reference_loads": {"type": "array", "items": {"type": "string"}},
+                "artifact_paths": {"type": "array", "items": {"type": "string"}},
+                "token_count": {"type": "integer", "minimum": 0}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

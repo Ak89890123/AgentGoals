@@ -127,7 +127,11 @@ def scan_goal_root(root: RegistryRoot, policy: HealthPolicy, evaluated_on: date)
         folder = root.goal_root / folder_name
         if not folder.exists():
             continue
-        for path in sorted(folder.rglob("CONTRACT.md")):
+        candidates = {
+            *folder.rglob("CONTRACT.md"),
+            *folder.rglob("*-goal-contract.md"),
+        }
+        for path in sorted(candidates, key=lambda candidate: candidate.as_posix()):
             entry = parse_contract_candidate(path, folder_name, root, policy, evaluated_on)
             if entry is not None:
                 entries.append(entry)
