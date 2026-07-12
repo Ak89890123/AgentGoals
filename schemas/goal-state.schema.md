@@ -11,6 +11,7 @@ STATE version 2 adds a deterministic queue summary and scheduling fields.
 ```yaml
 version: 2
 generated_at: ISO-8601 datetime
+operation_id: optional identifier shared by local and global STATE from one deterministic pipeline run
 queue:
   next_goal: <root-id>/<goal-id> | null
   next_planned_goal: <root-id>/<goal-id> | null
