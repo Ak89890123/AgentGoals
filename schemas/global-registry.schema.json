@@ -42,17 +42,17 @@
           "repo_root": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?:[A-Za-z]:[\\\\/]|\\\\\\\\)"
+            "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)"
           },
           "goal_root": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?:[A-Za-z]:[\\\\/]|\\\\\\\\)"
+            "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)"
           },
           "state_path": {
             "type": "string",
             "minLength": 1,
-            "pattern": "^(?:[A-Za-z]:[\\\\/]|\\\\\\\\)"
+            "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)"
           },
           "scope": {
             "enum": ["repo", "global", "harness"]

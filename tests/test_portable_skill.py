@@ -6,6 +6,7 @@ import shutil
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterator
 
 import pytest
@@ -23,6 +24,15 @@ def load_launcher():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def windows_os_proxy(launcher):
+    return SimpleNamespace(
+        name="nt",
+        access=launcher.os.access,
+        X_OK=launcher.os.X_OK,
+        environ=launcher.os.environ,
+    )
 
 
 @contextmanager
@@ -157,7 +167,7 @@ def test_launcher_rejects_windows_non_executable_file(capsys, monkeypatch) -> No
     with launcher_test_dir() as temp_dir:
         document = temp_dir / "README.md"
         document.write_text("not executable", encoding="utf-8")
-        monkeypatch.setattr(launcher.os, "name", "nt")
+        monkeypatch.setattr(launcher, "os", windows_os_proxy(launcher))
         exit_code = launcher.main(["--repo", str(ABS_REPO)], env={"GOAL_LIFECYCLE_BIN": str(document.resolve())}, which=lambda _: None, module_origin=None)
         payload = json.loads(capsys.readouterr().out)
 
@@ -182,7 +192,7 @@ def test_launcher_rejects_windows_batch_before_subprocess(capsys, monkeypatch) -
     with launcher_test_dir() as temp_dir:
         batch = temp_dir / "goal-lifecycle.cmd"
         batch.write_text("@echo off", encoding="utf-8")
-        monkeypatch.setattr(launcher.os, "name", "nt")
+        monkeypatch.setattr(launcher, "os", windows_os_proxy(launcher))
         called = False
 
         def fail_if_called(*args, **kwargs):
