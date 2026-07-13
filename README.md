@@ -1,4 +1,4 @@
-﻿# Goal Life Cycle
+﻿# AgentGoals
 
 This project prototypes a centralized Goal State Index for Goal Contract, Plan, and Evidence files.
 
@@ -42,29 +42,37 @@ The distribution installs one stable executable, so normal onboarding needs only
 the absolute target repository path:
 
 ```powershell
-goal-lifecycle --version
-goal-lifecycle doctor --json
-goal-lifecycle onboard --repo C:\devhome\legacy-repo --json
-goal-lifecycle onboard --repo C:\devhome\legacy-repo --apply --json
+agentgoals --version
+agentgoals doctor --json
+agentgoals onboard --repo C:\devhome\legacy-repo --json
+agentgoals onboard --repo C:\devhome\legacy-repo --apply --json
 ```
 
 Dry-run is the default. `--apply` authorizes repo-local writes for that exact
 invocation and target only. The command never discovers repositories by scanning
 the disk and never edits a global registry.
 
+During the bounded 0.x compatibility window, `goal-lifecycle` invokes the same
+`agentgoals.cli:main` implementation. It is deprecated and is scheduled for
+removal no earlier than 1.0.0 and 2026-10-01.
+
+Because the distribution name changed, use the explicit replacement and rollback
+sequence in `docs/migration-agentgoals.md`; do not install both distributions in
+the same environment.
+
 For a future GitHub release, install an immutable reviewed tag with either tool:
 
 ```powershell
-uv tool install "goal-lifecycle-toolkit @ git+https://github.com/<OWNER>/<REPO>.git@v0.1.0"
-pipx install "goal-lifecycle-toolkit @ git+https://github.com/<OWNER>/<REPO>.git@v0.1.0"
+uv tool install "agentgoals @ git+https://github.com/<OWNER>/AgentGoals.git@v0.2.0"
+pipx install "agentgoals @ git+https://github.com/<OWNER>/AgentGoals.git@v0.2.0"
 ```
 
 Upgrade by installing a newer immutable tag. Roll back by reinstalling the prior
 tag, or remove the tool completely:
 
 ```powershell
-uv tool uninstall goal-lifecycle-toolkit
-pipx uninstall goal-lifecycle-toolkit
+uv tool uninstall agentgoals
+pipx uninstall agentgoals
 ```
 
 `<OWNER>/<REPO>`, the project license, release tag, and artifact hashes are
@@ -93,7 +101,7 @@ Run the read-only reconciler:
 ```powershell
 $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry/REGISTRY.json --out outputs
+.\.venv\Scripts\python -m agentgoals.reconcile --registry registry/REGISTRY.json --out outputs
 ```
 
 The command scans only registered roots, reads directory-mode `CONTRACT.md` files
@@ -105,7 +113,7 @@ Validate registry and STATE JSON:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs/STATE.json
+.\.venv\Scripts\python -m agentgoals.validate --registry registry/REGISTRY.json --state outputs/STATE.json
 ```
 
 ## Global Aggregate
@@ -115,8 +123,8 @@ Run the read-only global aggregator against the reviewed global registry:
 ```powershell
 $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
-.\.venv\Scripts\python -m goal_lifecycle.validate --state outputs\global\STATE.json
+.\.venv\Scripts\python -m agentgoals.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
+.\.venv\Scripts\python -m agentgoals.validate --state outputs\global\STATE.json
 ```
 
 The aggregator reads only registered absolute `state_path` files and writes only the requested output directory. Missing or malformed repo STATE files become aggregate issues. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.
@@ -127,13 +135,13 @@ Query an existing derived STATE without modifying source files:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.queue --state outputs\STATE.json
+.\.venv\Scripts\python -m agentgoals.queue --state outputs\STATE.json
 ```
 
 Query the current global queue directly from registered repo STATE files without writing aggregate output:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.queue `
+.\.venv\Scripts\python -m agentgoals.queue `
   --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
   --json
 ```
@@ -141,8 +149,8 @@ Query the current global queue directly from registered repo STATE files without
 Check or apply onboarding for one explicit repository:
 
 ```powershell
-goal-lifecycle onboard --repo C:\devhome\legacy-repo --json
-goal-lifecycle onboard --repo C:\devhome\legacy-repo --apply --json
+agentgoals onboard --repo C:\devhome\legacy-repo --json
+agentgoals onboard --repo C:\devhome\legacy-repo --apply --json
 ```
 
 Source scheduling metadata belongs in Contract frontmatter:
@@ -163,13 +171,13 @@ Run the local read-only pipeline with one command:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.run --registry registry/REGISTRY.json --out outputs
+.\.venv\Scripts\python -m agentgoals.run --registry registry/REGISTRY.json --out outputs
 ```
 
 Add the reviewed global registry to continue through global aggregation and validation:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.run `
+.\.venv\Scripts\python -m agentgoals.run `
   --registry registry/REGISTRY.json `
   --out outputs `
   --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
@@ -192,22 +200,22 @@ The orchestrator rejects `--out` and configured global output paths under the us
 Validate a fresh onboarding report and matching global STATE into compact close/resume context:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.session_handoff `
+.\.venv\Scripts\python -m agentgoals.session_handoff `
   --report outputs\ONBOARDING.json `
   --state outputs\global\STATE.json
 ```
 
 Exit code `0` returns a versioned fast-path focus with lifecycle, review, evidence, health, source-path, and exact-gate fields. Exit code `2` returns a named fallback reason and preserves the existing read-only repository scan. The caller must still confirm source Contract frontmatter and inspect Git state. See `docs/session-handoff.md`.
 
-## Goal Control Desktop Dashboard
+## AgentGoals Desktop Dashboard
 
-Goal Control is a Windows-first, local-only desktop view over validated aggregate STATE. It uses the native Python/Tk shell, starts no server, performs no network request, and exposes no Goal mutation control.
+AgentGoals is a Windows-first, local-only desktop view over validated aggregate STATE. It uses the native Python/Tk shell, starts no server, performs no network request, and exposes no Goal mutation control.
 
 Run from source:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.dashboard_app --state outputs\global\STATE.json
+.\.venv\Scripts\python -m agentgoals.dashboard_app --state outputs\global\STATE.json
 ```
 
 Build the packaged application:
@@ -217,7 +225,7 @@ Build the packaged application:
 .\scripts\build_dashboard.ps1
 ```
 
-The executable is generated at `dist\goal-dashboard\GoalControl\GoalControl.exe`. The folder is the installable unit; keep its `_internal` directory beside the executable. Generated packages are ignored and can be rebuilt deterministically.
+The executable is generated at `dist\agentgoals-dashboard\AgentGoals\AgentGoals.exe`. The folder is the installable unit; keep its `_internal` directory beside the executable. Generated packages are ignored and can be rebuilt deterministically.
 
 Keyboard shortcuts: `Ctrl+R` refreshes, `Ctrl+F` focuses search, `Esc` clears search, and `Enter` or double-click opens the selected Contract. Contract, PLAN, and EVIDENCE paths are opened only when they are absolute existing files under the registered Goal root.
 
@@ -238,7 +246,7 @@ observations, without modifying the Skill:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.skill_eval `
+.\.venv\Scripts\python -m agentgoals.skill_eval `
   --manifest fixtures\goal_skill_eval\v1\manifest.json
 ```
 
@@ -248,7 +256,7 @@ This is deliberate: a fixture/rubric self-check is not a semantic model baseline
 To inspect the isolated runtime plan without model calls:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.skill_eval_runtime `
+.\.venv\Scripts\python -m agentgoals.skill_eval_runtime `
   --manifest fixtures\goal_skill_eval\v1\manifest.json `
   --out .tmp\goal-skill-eval
 ```
@@ -299,7 +307,7 @@ write only their isolated fixture workspaces under `--out` and then produce
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/session-handoff.md`: deterministic session close/resume protocol and fallback rules.
-- `docs/desktop-shell-spike.md`: Goal Control desktop-shell decision and measured performance evidence.
+- `docs/desktop-shell-spike.md`: AgentGoals desktop-shell decision and measured performance evidence.
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
 - `goals/completed/deterministic-lifecycle-orchestration/`: completed implementation goal for the deterministic single-command operator flow.

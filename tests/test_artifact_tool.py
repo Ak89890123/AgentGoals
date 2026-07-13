@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import sys
@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from goal_lifecycle import artifact_tool
-from goal_lifecycle.artifact_audit import audit_database_path, list_audit_receipts
-from goal_lifecycle.artifact_tool import (
+from agentgoals import artifact_tool
+from agentgoals.artifact_audit import audit_database_path, list_audit_receipts
+from agentgoals.artifact_tool import (
     ArtifactToolError,
     apply_artifacts,
     audit_payload,
@@ -16,7 +16,7 @@ from goal_lifecycle.artifact_tool import (
     preview_artifacts,
     validate_artifacts,
 )
-from goal_lifecycle.reconcile import reconcile
+from agentgoals.reconcile import reconcile
 from tests.test_reconcile import make_workspace, write_registry
 
 
@@ -347,7 +347,7 @@ def test_single_file_publish_never_overwrites_a_target_created_after_preflight(m
         path.write_text(text, encoding="utf-8")
         final_path.write_text("competing content", encoding="utf-8")
 
-    monkeypatch.setattr("goal_lifecycle.artifact_tool.atomic_write_text", stage_then_compete)
+    monkeypatch.setattr("agentgoals.artifact_tool.atomic_write_text", stage_then_compete)
 
     with pytest.raises(ArtifactToolError, match="already exists"):
         apply_artifacts(repo, target, decision())
@@ -365,7 +365,7 @@ def test_directory_publish_never_overwrites_a_target_created_after_preflight(mon
             final_dir.mkdir()
             (final_dir / "external.txt").write_text("competing content", encoding="utf-8")
 
-    monkeypatch.setattr("goal_lifecycle.artifact_tool.atomic_write_text", stage_then_compete)
+    monkeypatch.setattr("agentgoals.artifact_tool.atomic_write_text", stage_then_compete)
 
     with pytest.raises(ArtifactToolError, match="already exists"):
         apply_artifacts(repo, target, decision(size="goal_grade", layout="directory"))
@@ -384,7 +384,7 @@ def test_directory_write_failure_does_not_publish_partial_target(monkeypatch: py
             raise OSError("simulated failure")
         path.write_text(text, encoding="utf-8")
 
-    monkeypatch.setattr("goal_lifecycle.artifact_tool.atomic_write_text", fail_second_write)
+    monkeypatch.setattr("agentgoals.artifact_tool.atomic_write_text", fail_second_write)
 
     with pytest.raises(OSError, match="simulated failure"):
         apply_artifacts(repo, target, decision(size="goal_grade", layout="directory"))

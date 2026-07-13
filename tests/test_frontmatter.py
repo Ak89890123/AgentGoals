@@ -1,4 +1,4 @@
-from goal_lifecycle.frontmatter import parse_frontmatter
+﻿from agentgoals.frontmatter import parse_frontmatter
 
 
 def test_parse_frontmatter_metadata_and_body() -> None:

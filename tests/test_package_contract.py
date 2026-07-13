@@ -15,16 +15,19 @@ def test_distribution_has_reproducible_setuptools_build_contract() -> None:
         "requires": ["setuptools>=77"],
         "build-backend": "setuptools.build_meta",
     }
-    assert payload["project"]["name"] == "goal-lifecycle-toolkit"
+    assert payload["project"]["name"] == "agentgoals"
     assert payload["project"]["readme"] == "PACKAGE_README.md"
-    assert payload["project"]["scripts"] == {"goal-lifecycle": "goal_lifecycle.cli:main"}
+    assert payload["project"]["scripts"] == {
+        "agentgoals": "agentgoals.cli:main",
+        "goal-lifecycle": "agentgoals.cli:main",
+    }
 
 
 def test_distribution_installs_all_json_schemas_to_standard_share_path() -> None:
     payload = load_pyproject()
 
     assert payload["tool"]["setuptools"]["data-files"] == {
-        "share/goal-lifecycle/schemas": ["schemas/*.json"]
+        "share/agentgoals/schemas": ["schemas/*.json"]
     }
 
 

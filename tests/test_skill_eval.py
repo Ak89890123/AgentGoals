@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from copy import deepcopy
 from pathlib import Path
 
-from goal_lifecycle.skill_eval import evaluate, hash_file, load_manifest, main
-from goal_lifecycle.skill_eval_runtime import build_prompt, main as runtime_main, plan_runs
+from agentgoals.skill_eval import evaluate, hash_file, load_manifest, main
+from agentgoals.skill_eval_runtime import build_prompt, main as runtime_main, plan_runs
 from tests.test_reconcile import make_workspace
 
 

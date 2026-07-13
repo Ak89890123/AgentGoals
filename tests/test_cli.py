@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import goal_lifecycle.cli as cli_module
+import agentgoals.cli as cli_module
 
 
 def test_root_cli_reports_stable_version(capsys) -> None:
     exit_code = cli_module.main(["--version"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.strip() == "goal-lifecycle 0.1.0"
+    assert capsys.readouterr().out.strip() == "agentgoals 0.2.0"
 
 
 def test_root_cli_delegates_onboard_without_rewriting_arguments(monkeypatch) -> None:

@@ -10,11 +10,11 @@ $python = Join-Path $repoRoot ".venv\Scripts\python.exe"
 $launcher = Join-Path $repoRoot "apps\goal_dashboard.pyw"
 $schemas = Join-Path $repoRoot "schemas"
 $assets = Join-Path $repoRoot "assets"
-$icon = Join-Path $assets "goal-control-target.ico"
+$icon = Join-Path $assets "agentgoals-target.ico"
 $source = Join-Path $repoRoot "src"
 $work = Join-Path $repoRoot ".tmp\pyinstaller-dashboard"
 if (-not $OutputDir) {
-    $OutputDir = Join-Path $repoRoot "dist\goal-dashboard"
+    $OutputDir = Join-Path $repoRoot "dist\agentgoals-dashboard"
 }
 $output = [System.IO.Path]::GetFullPath($OutputDir)
 
@@ -39,7 +39,7 @@ $arguments = @(
     "--noconfirm",
     "--onedir",
     "--windowed",
-    "--name", "GoalControl",
+    "--name", "AgentGoals",
     "--distpath", $output,
     "--workpath", $work,
     "--specpath", $work,
@@ -58,8 +58,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "Dashboard packaging failed with exit code $LASTEXITCODE"
 }
 
-$packageDir = Join-Path $output "GoalControl"
-$executable = Join-Path $packageDir "GoalControl.exe"
+$packageDir = Join-Path $output "AgentGoals"
+$executable = Join-Path $packageDir "AgentGoals.exe"
 if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
     throw "Packaged executable was not created: $executable"
 }

@@ -1,11 +1,11 @@
-# Goal Lifecycle Toolkit
+# AgentGoals
 
 Portable, dry-run-first tooling for Goal Contract lifecycle onboarding.
 
 ```text
-goal-lifecycle --version
-goal-lifecycle doctor --json
-goal-lifecycle onboard --repo <absolute-repository-path> --json
+agentgoals --version
+agentgoals doctor --json
+agentgoals onboard --repo <absolute-repository-path> --json
 ```
 
 `--apply` permits repository-local writes for that exact target and invocation.

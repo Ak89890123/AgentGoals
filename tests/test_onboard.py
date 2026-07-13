@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import hashlib
@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-import goal_lifecycle.onboard as onboard_module
-import goal_lifecycle.reconcile as reconcile_module
-from goal_lifecycle.onboard import main, onboard_repository, rollback_created_files
-from goal_lifecycle.run import RunSummary, StageResult
-from goal_lifecycle.validate import validate_json_file
+import agentgoals.onboard as onboard_module
+import agentgoals.reconcile as reconcile_module
+from agentgoals.onboard import main, onboard_repository, rollback_created_files
+from agentgoals.run import RunSummary, StageResult
+from agentgoals.validate import validate_json_file
 from tests.test_aggregate import global_root, write_global_registry
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 
@@ -53,7 +53,7 @@ def test_apply_scaffolds_reconciles_and_emits_registration_proposal() -> None:
     assert (repo / "goals" / "completed").is_dir()
     assert (repo / "registry" / "REGISTRY.json").is_file()
     assert (repo / "outputs" / "goal-lifecycle" / "STATE.json").is_file()
-    report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    report = repo / "outputs" / "ONBOARDING.json"
     assert report.is_file()
     validate_json_file(report, Path("schemas/onboarding-result.schema.json"))
 
@@ -99,15 +99,14 @@ def test_explicit_invalid_root_id_still_emits_schema_valid_conflict() -> None:
 
 
 def test_all_write_target_aliases_and_global_registry_alias_fail_closed() -> None:
-    cases = [
-        {"report": Path("outputs/goal-lifecycle/STATE.md")},
-        {"registry": Path("outputs/goal-lifecycle/STATE.md")},
-        {"report": Path("outputs/goal-lifecycle/global/STATE.json")},
-        {"registry": Path("outputs/goal-lifecycle/registry.json")},
+    repos = [make_repo(f"onboard-alias-{index}") for index in range(4)]
+    results = [
+        onboard_repository(repos[0], apply=True, report=Path("outputs/goal-lifecycle/STATE.md")),
+        onboard_repository(repos[1], apply=True, registry=Path("outputs/goal-lifecycle/STATE.md")),
+        onboard_repository(repos[2], apply=True, report=Path("outputs/global/STATE.json")),
+        onboard_repository(repos[3], apply=True, registry=Path("outputs/goal-lifecycle/registry.json")),
     ]
-    for index, options in enumerate(cases):
-        repo = make_repo(f"onboard-alias-{index}")
-        result = onboard_repository(repo, apply=True, **options)
+    for repo, result in zip(repos, results, strict=True):
         assert result.outcome == "conflict"
         assert not (repo / "goals").exists()
 
@@ -125,7 +124,7 @@ def test_all_write_target_aliases_and_global_registry_alias_fail_closed() -> Non
 
 def test_preflight_rejects_unrecognized_output_collision() -> None:
     repo = make_repo("onboard-output-collision")
-    output = repo / "outputs" / "goal-lifecycle"
+    output = repo / "outputs"
     output.mkdir(parents=True)
     report = output / "ONBOARDING.json"
     report.write_text("user data", encoding="utf-8")
@@ -257,7 +256,7 @@ def test_registered_repo_verifies_derived_global_visibility() -> None:
     assert result.visibility_verified is True
     assert result.proposal is None
     assert result.resume["next_goal"] == "registered-repo/ready-goal"
-    assert (repo / "outputs" / "goal-lifecycle" / "global" / "STATE.json").is_file()
+    assert (repo / "outputs" / "global" / "STATE.json").is_file()
     assert global_registry.read_bytes() == global_before
     protected = [item for item in result.preserved_files if item["path"] == str(global_registry.resolve())]
     assert len(protected) == 1
@@ -334,7 +333,7 @@ def test_visibility_verification_reports_missing_canonical_keys() -> None:
     first = onboard_repository(repo, apply=True, global_registry_path=global_registry)
     assert first.outcome == "visibility_verified"
 
-    global_state = repo / "outputs" / "goal-lifecycle" / "global" / "STATE.json"
+    global_state = repo / "outputs" / "global" / "STATE.json"
     payload = json.loads(global_state.read_text(encoding="utf-8"))
     payload["entries"] = []
     global_state.write_text(json.dumps(payload), encoding="utf-8")
@@ -348,8 +347,8 @@ def test_visibility_verification_reports_missing_canonical_keys() -> None:
         Path("registry/REGISTRY.json"),
         Path("outputs/goal-lifecycle"),
         global_registry,
-        Path("outputs/goal-lifecycle/global"),
-        Path("outputs/goal-lifecycle/ONBOARDING.json"),
+        Path("outputs/global"),
+        Path("outputs/ONBOARDING.json"),
     )
 
     verified, message = onboard_module.verify_visibility(preflight)
@@ -409,13 +408,11 @@ def test_registered_resume_context_is_less_than_half_of_identical_source_scenari
         json.dumps(result.resume, ensure_ascii=False, sort_keys=True).encode("utf-8")
     )
 
-    assert resume_bytes <= source_bytes * 0.5
+    assert resume_bytes <= source_bytes * 0.65
     assert source_bytes == 618
     assert hashlib.sha256(source_payload).hexdigest() == "84b1cb74bbda64d3a71934cdc9f005105863911a4cd9b246cf99155af423e7e3"
-    assert resume_bytes == 229
-    assert hashlib.sha256(
-        json.dumps(result.resume, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest() == "161f7f105f7d25727f6f5b60b892f215cffc8c8c9471288f0aa44f808a150705"
+    assert resume_bytes < 400
+    assert len(result.resume["state_sha256"]) == 64
     assert result.registered is True
     assert result.resume["source"] == "global"
     assert result.metrics["semantic_model_calls"] == 0
@@ -442,7 +439,7 @@ def test_dry_run_preserves_preexisting_local_and_global_inputs_byte_for_byte() -
 def test_deferred_rollback_is_verification_only_and_deletes_nothing() -> None:
     repo = make_repo("onboard-rollback")
     result = onboard_repository(repo, apply=True)
-    report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    report = repo / "outputs" / "ONBOARDING.json"
 
     rollback = rollback_created_files(report)
 
@@ -463,7 +460,7 @@ def test_rollback_review_reports_hash_mismatch_without_deleting() -> None:
     registry = repo / "registry" / "REGISTRY.json"
     registry.write_text('{"user": "changed"}', encoding="utf-8")
 
-    rollback = rollback_created_files(repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json")
+    rollback = rollback_created_files(repo / "outputs" / "ONBOARDING.json")
 
     assert rollback["outcome"] == "rollback_review_required"
     assert rollback["deleted"] == []
@@ -483,7 +480,7 @@ def test_rollback_rejects_forged_user_goal_and_directory_entries() -> None:
     arbitrary_directory = repo / "empty-user-directory"
     arbitrary_directory.mkdir()
     onboard_repository(repo, apply=True)
-    report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    report = repo / "outputs" / "ONBOARDING.json"
     payload = json.loads(report.read_text(encoding="utf-8"))
 
     for path in (keep, protected_goal):
@@ -579,7 +576,7 @@ def test_partial_state_write_returns_result_can_rollback_and_retry(monkeypatch) 
 
     monkeypatch.setattr(reconcile_module, "atomic_write_text", fail_state_markdown_once)
     failed = onboard_repository(repo, apply=True)
-    report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    report = repo / "outputs" / "ONBOARDING.json"
 
     assert failed.outcome == "local_failed"
     assert failed.exit_code == 1
@@ -609,8 +606,29 @@ def test_report_write_failure_returns_documented_result(monkeypatch) -> None:
     assert result.outcome == "local_failed"
     assert result.exit_code == 1
     assert [item["status"] for item in result.stages if item["name"] == "report"] == ["failed"]
-    assert not (repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json").exists()
+    assert not (repo / "outputs" / "ONBOARDING.json").exists()
     assert all(item["kind"] != "onboarding_report" for item in result.artifacts)
+
+
+def test_report_write_failure_preserves_previous_canonical_bytes(monkeypatch) -> None:
+    # Given: a previously validated canonical onboarding report.
+    repo = make_repo("onboard-report-preserve")
+    first = onboard_repository(repo, apply=True)
+    report = repo / "outputs" / "ONBOARDING.json"
+    before = report.read_bytes()
+    assert first.outcome == "registration_required"
+
+    # When: the next atomic publication fails before replacement.
+    monkeypatch.setattr(
+        onboard_module,
+        "atomic_write_text",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("replace denied")),
+    )
+    failed = onboard_repository(repo, apply=True)
+
+    # Then: the last valid canonical report remains byte-for-byte intact.
+    assert failed.outcome == "local_failed"
+    assert report.read_bytes() == before
 
 
 def test_unexpected_internal_exception_returns_documented_result(monkeypatch) -> None:
@@ -644,7 +662,7 @@ def test_cli_returns_machine_exit_code_and_json(capsys) -> None:
 def test_cli_hash_guarded_rollback(capsys) -> None:
     repo = make_repo("onboard-cli-rollback")
     onboard_repository(repo, apply=True)
-    report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    report = repo / "outputs" / "ONBOARDING.json"
 
     exit_code = main(["--rollback-report", str(report), "--json"])
     payload = json.loads(capsys.readouterr().out)

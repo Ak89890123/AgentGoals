@@ -1,0 +1,358 @@
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+import yaml
+
+from agentgoals.frontmatter import parse_frontmatter
+from agentgoals.health import HealthPolicy, disabled_health, evaluate_health, normalize_health_policy
+from agentgoals.io import atomic_write_text
+from agentgoals.render import render_state_markdown
+from agentgoals.scheduling import apply_scheduling, normalize_scheduling
+
+
+OPEN_STATUSES = {"draft", "review_pending", "ready", "in_progress", "blocked"}
+DONE_STATUSES = {"completed", "cancelled"}
+
+
+@dataclass(frozen=True)
+class RegistryRoot:
+    id: str
+    label: str
+    goal_root: Path
+    scope: str
+    project: str
+    active: bool
+
+
+@dataclass
+class StateEntry:
+    id: str
+    title: str
+    status: str
+    project: str
+    root_id: str
+    goal_key: str
+    goal_root: str
+    contract_path: str
+    plan_path: str | None
+    evidence_path: str | None
+    owner: str | None
+    updated: str | None
+    completed: str | None
+    review: dict[str, Any]
+    evidence: dict[str, Any]
+    health: dict[str, Any]
+    scheduling: dict[str, Any]
+    next_action: str | None
+    blocked_reason: str | None
+    source_hash: str
+    last_seen: str
+    issues: list[str] = field(default_factory=list)
+
+
+def load_registry(path: Path) -> list[RegistryRoot]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    roots = []
+    base_dir = path.parent.parent
+    for item in data.get("roots", []):
+        raw_goal_root = Path(item["goal_root"])
+        goal_root = raw_goal_root if raw_goal_root.is_absolute() else base_dir / raw_goal_root
+        roots.append(
+            RegistryRoot(
+                id=item["id"],
+                label=item.get("label", item["id"]),
+                goal_root=goal_root,
+                scope=item.get("scope", "repo"),
+                project=item.get("project", item["id"]),
+                active=bool(item.get("active", True)),
+            )
+        )
+    return roots
+
+
+def reconcile(
+    registry_path: Path,
+    out_dir: Path,
+    evaluation_date: date | None = None,
+    operation_id: str | None = None,
+) -> list[StateEntry]:
+    registry_data = json.loads(registry_path.read_text(encoding="utf-8"))
+    policy = normalize_health_policy(registry_data.get("health_policy"))
+    evaluated_on = evaluation_date or datetime.now(timezone.utc).date()
+    entries: list[StateEntry] = []
+    for root in load_registry(registry_path):
+        if not root.active:
+            continue
+        entries.extend(scan_goal_root(root, policy, evaluated_on))
+
+    queue = apply_scheduling(entries, strict_missing=False)
+    entries.sort(key=lambda entry: (entry.scheduling["queue_position"] is None, entry.scheduling["queue_position"] or 0, entry.goal_key))
+    write_outputs(entries, out_dir, queue, operation_id=operation_id or uuid4().hex)
+    return entries
+
+
+def scan_goal_root(root: RegistryRoot, policy: HealthPolicy, evaluated_on: date) -> list[StateEntry]:
+    if not root.goal_root.exists():
+        return [
+            StateEntry(
+                id=root.id,
+                title=root.label,
+                status="missing",
+                project=root.project,
+                root_id=root.id,
+                goal_key=f"{root.id}/{root.id}",
+                goal_root=str(root.goal_root),
+                contract_path="",
+                plan_path=None,
+                evidence_path=None,
+                owner=None,
+                updated=None,
+                completed=None,
+                review={"required": False, "verdict": None},
+                evidence={"status": None},
+                health=disabled_health(),
+                scheduling=normalize_scheduling(None, root.id)[0],
+                next_action=None,
+                blocked_reason=f"Registered goal root not found: {root.goal_root}",
+                source_hash="",
+                last_seen=now_iso(),
+                issues=["missing"],
+            )
+        ]
+
+    entries: list[StateEntry] = []
+    for folder_name in ("active", "completed"):
+        folder = root.goal_root / folder_name
+        if not folder.exists():
+            continue
+        candidates = {
+            *folder.rglob("CONTRACT.md"),
+            *folder.rglob("*-goal-contract.md"),
+        }
+        for path in sorted(candidates, key=lambda candidate: candidate.as_posix()):
+            entry = parse_contract_candidate(path, folder_name, root, policy, evaluated_on)
+            if entry is not None:
+                entries.append(entry)
+    return entries
+
+
+def parse_contract_candidate(
+    path: Path,
+    folder_name: str,
+    root: RegistryRoot,
+    policy: HealthPolicy,
+    evaluated_on: date,
+) -> StateEntry | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+        document = parse_frontmatter(text)
+    except Exception as exc:
+        return parse_error_entry(path, folder_name, root, exc)
+
+    if document.metadata.get("type") != "goal-contract":
+        return None
+
+    goal_dir = path.parent if path.name.upper() == "CONTRACT.MD" else path.parent
+    plan_path = goal_dir / "PLAN.md"
+    evidence_path = goal_dir / "EVIDENCE.md"
+    related_errors: list[str] = []
+    plan_metadata = read_optional_metadata(plan_path, related_errors)
+    evidence_metadata = read_optional_metadata(evidence_path, related_errors)
+
+    status = str(document.metadata.get("status") or "draft")
+    issues = detect_issues(
+        folder_name,
+        status,
+        plan_path,
+        evidence_path,
+        document.metadata,
+        evidence_metadata,
+        related_errors,
+        policy.enabled,
+    )
+    scheduling, scheduling_issues = normalize_scheduling(document.metadata.get("scheduling"), root.id)
+    issues.extend(issue for issue in scheduling_issues if issue not in issues)
+
+    review = normalize_review(document.metadata.get("review"))
+    evidence = {"status": evidence_metadata.get("status") if evidence_metadata else None}
+    health = evaluate_health(
+        status,
+        document.metadata,
+        plan_metadata,
+        evidence_metadata,
+        policy,
+        evaluated_on,
+    )
+    issues.extend(
+        finding["code"]
+        for finding in health["findings"]
+        if finding["code"] not in issues
+    )
+
+    return StateEntry(
+        id=str(document.metadata.get("id") or path.stem),
+        title=str(document.metadata.get("title") or path.stem),
+        status=status,
+        project=str(document.metadata.get("project") or root.project),
+        root_id=root.id,
+        goal_key=f"{root.id}/{document.metadata.get('id') or path.stem}",
+        goal_root=str(root.goal_root),
+        contract_path=str(path),
+        plan_path=str(plan_path) if plan_path.exists() else None,
+        evidence_path=str(evidence_path) if evidence_path.exists() else None,
+        owner=document.metadata.get("owner"),
+        updated=string_or_none(document.metadata.get("updated")),
+        completed=string_or_none(document.metadata.get("completed")),
+        review=review,
+        evidence=evidence,
+        health=health,
+        scheduling=scheduling,
+        next_action=None,
+        blocked_reason="; ".join(related_errors) if related_errors else None,
+        source_hash=sha256_text(text),
+        last_seen=now_iso(),
+        issues=issues,
+    )
+
+
+def read_optional_metadata(path: Path, errors: list[str]) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        document = parse_frontmatter(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        errors.append(f"{path.name}: {type(exc).__name__}: {exc}")
+        return {}
+    return document.metadata
+
+
+def detect_issues(
+    folder_name: str,
+    status: str,
+    plan_path: Path,
+    evidence_path: Path,
+    contract_metadata: dict[str, Any],
+    evidence_metadata: dict[str, Any],
+    related_errors: list[str],
+    health_policy_enabled: bool = False,
+) -> list[str]:
+    issues: list[str] = []
+    if folder_name == "active" and status in DONE_STATUSES:
+        issues.append("status_folder_mismatch")
+    if folder_name == "completed" and status in OPEN_STATUSES:
+        issues.append("status_folder_mismatch")
+    if contract_metadata.get("file_mode") == "directory" and not plan_path.exists():
+        issues.append("missing_plan")
+    if contract_metadata.get("file_mode") == "directory" and not evidence_path.exists():
+        issues.append("missing_evidence")
+    if evidence_metadata.get("status") in {"pending", "partial"}:
+        issues.append("evidence_incomplete")
+    if related_errors:
+        issues.append("parse_error")
+    if not health_policy_enabled and not contract_metadata.get("updated"):
+        issues.append("stale")
+
+    review = normalize_review(contract_metadata.get("review"))
+    if review.get("required") and review.get("verdict") in {None, "pending", "NEEDS_EVIDENCE"}:
+        issues.append("review_pending")
+
+    return issues
+
+
+def parse_error_entry(path: Path, folder_name: str, root: RegistryRoot, exc: Exception) -> StateEntry:
+    return StateEntry(
+        id=path.stem,
+        title=path.name,
+        status="parse_error",
+        project=root.project,
+        root_id=root.id,
+        goal_key=f"{root.id}/{path.parent.name}",
+        goal_root=str(root.goal_root),
+        contract_path=str(path),
+        plan_path=None,
+        evidence_path=None,
+        owner=None,
+        updated=None,
+        completed=None,
+        review={"required": False, "verdict": None},
+        evidence={"status": None},
+        health=disabled_health(),
+        scheduling=normalize_scheduling(None, root.id)[0],
+        next_action=None,
+        blocked_reason=f"{type(exc).__name__}: {exc}",
+        source_hash="",
+        last_seen=now_iso(),
+        issues=["parse_error"],
+    )
+
+
+def write_outputs(
+    entries: list[StateEntry],
+    out_dir: Path,
+    queue: dict[str, Any],
+    *,
+    operation_id: str,
+) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 2,
+        "operation_id": operation_id,
+        "generated_at": now_iso(),
+        "queue": queue,
+        "entries": [asdict(entry) for entry in entries],
+    }
+    atomic_write_text(
+        out_dir / "STATE.json",
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+    )
+    atomic_write_text(out_dir / "STATE.md", render_state_markdown(entries))
+
+
+def normalize_review(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return {
+            "required": bool(value.get("required", False)),
+            "verdict": value.get("verdict"),
+        }
+    return {"required": False, "verdict": None}
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def string_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str) and not value:
+        return None
+    return str(value)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Reconcile Goal Contract state from registered roots.")
+    parser.add_argument("--registry", type=Path, default=Path("registry/REGISTRY.json"))
+    parser.add_argument("--out", type=Path, default=Path("outputs"))
+    parser.add_argument("--evaluation-date", type=date.fromisoformat)
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    reconcile(args.registry, args.out, evaluation_date=args.evaluation_date)
+
+
+if __name__ == "__main__":
+    main()

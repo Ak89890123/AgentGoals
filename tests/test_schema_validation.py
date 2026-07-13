@@ -1,4 +1,4 @@
-import json
+﻿import json
 import sys
 import uuid
 from contextlib import contextmanager
@@ -7,8 +7,8 @@ from typing import Iterator
 
 import pytest
 
-from goal_lifecycle.reconcile import reconcile
-from goal_lifecycle.validate import resolve_schema_dir, validate_json_file, validate_registry, validate_state
+from agentgoals.reconcile import reconcile
+from agentgoals.validate import resolve_schema_dir, validate_json_file, validate_registry, validate_state
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 
 

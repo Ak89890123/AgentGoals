@@ -8,9 +8,9 @@ import time
 import uuid
 from pathlib import Path
 
-from goal_lifecycle.artifact_audit import begin_audit_receipt, complete_audit_receipt, list_audit_receipts
-from goal_lifecycle.artifact_tool import ArtifactFile, ArtifactResult
-from goal_lifecycle.io import atomic_write_text
+from agentgoals.artifact_audit import begin_audit_receipt, complete_audit_receipt, list_audit_receipts
+from agentgoals.artifact_tool import ArtifactFile, ArtifactResult
+from agentgoals.io import atomic_write_text
 
 
 def artifact_result(repo: Path, index: int, action: str) -> ArtifactResult:

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.goal-lifecycle/schemas/goal-state.schema.json",
+  "$id": "https://local.agentgoals/schemas/goal-state.schema.json",
   "title": "Goal State",
   "type": "object",
   "additionalProperties": false,

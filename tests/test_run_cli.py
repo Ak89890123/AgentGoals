@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
 
-import goal_lifecycle.run as run_module
-from goal_lifecycle.run import main, run_pipeline
+import agentgoals.run as run_module
+from agentgoals.run import main, run_pipeline
 from tests.test_health import enable_health_policy
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 

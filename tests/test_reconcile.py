@@ -1,7 +1,7 @@
-from pathlib import Path
+﻿from pathlib import Path
 from uuid import uuid4
 
-from goal_lifecycle.reconcile import reconcile
+from agentgoals.reconcile import reconcile
 
 
 def make_workspace(name: str) -> Path:

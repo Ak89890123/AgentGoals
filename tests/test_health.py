@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from datetime import date, timedelta
@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from goal_lifecycle.aggregate import aggregate
-from goal_lifecycle.onboard import onboard_repository
-from goal_lifecycle.reconcile import reconcile
-from goal_lifecycle.validate import validate_state
+from agentgoals.aggregate import aggregate
+from agentgoals.onboard import onboard_repository
+from agentgoals.reconcile import reconcile
+from agentgoals.validate import validate_state
 from tests.test_aggregate import global_root, write_global_registry
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 
