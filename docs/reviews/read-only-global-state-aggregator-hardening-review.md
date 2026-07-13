@@ -2,7 +2,7 @@
 
 Review target: HEAD `219aeb7e96bf92741671abb5c152342508b38408` (`Harden global aggregator path validation`)
 
-Prior review checked: `.omo/evidence/read-only-global-state-aggregator-code-review.md`
+Prior review checked: `docs/reviews/read-only-global-state-aggregator-code-review.md`
 
 Scope reviewed:
 
@@ -13,8 +13,7 @@ Scope reviewed:
 - `README.md`
 - `docs/production-state-topology.md`
 - `docs/global-registry-schema-notes.md`
-- `goals/active/codex-skill-optimization/EVIDENCE.md`
-- `goals/completed/production-state-location/EVIDENCE.md`
+- repo-local review and acceptance records for the associated Goal work
 
 Skill-perspective check:
 
@@ -56,14 +55,14 @@ Addressed:
 - Multi-root duplicate goal ids: tests verify both duplicate ids survive aggregation and remain path-disambiguated (`tests/test_aggregate.py:207`, `tests/test_aggregate.py:228`).
 - No source goal mutation: production aggregation writes only the caller-selected output directory (`src/goal_lifecycle/aggregate.py:183`, `src/goal_lifecycle/aggregate.py:194`) and reads registered `state_path` files only (`src/goal_lifecycle/aggregate.py:75`, `src/goal_lifecycle/aggregate.py:83`).
 - No broad disk scan: no `rglob`, `glob`, `os.walk`, or equivalent scan appears in the aggregator; it iterates only registry roots and reads only `root.state_path`.
-- No global `.codex` mutation in this commit: `git diff-tree --no-commit-id --name-only -r HEAD` lists only repo-local files in the reviewed scope. Documentation and evidence mention the existing global registry path, but this commit does not modify files under `C:\Users\jimmy0302\.codex`.
+- No global `.codex` mutation in this commit: `git diff-tree --no-commit-id --name-only -r HEAD` lists only repo-local files in the reviewed scope. Documentation and evidence mention the existing global registry path, but this commit does not modify files under the operator-supplied global `.codex` root.
 
 ## Verification
 
 - Confirmed HEAD: `219aeb7e96bf92741671abb5c152342508b38408`.
 - Confirmed worktree status was clean before writing this report.
 - Inspected full patch for commit `219aeb7`.
-- Inspected prior review artifact `.omo/evidence/read-only-global-state-aggregator-code-review.md`.
+- Inspected prior review artifact `docs/reviews/read-only-global-state-aggregator-code-review.md`.
 - Ran `.\.venv\Scripts\python -m pytest` with repo-local `TEMP`/`TMP`. Result: `28 passed in 0.79s`.
 - Measured pure LOC for changed Python test/production files: `src/goal_lifecycle/aggregate.py` 190, `tests/test_aggregate.py` 176; both under the 250-line programming-skill ceiling.
 
@@ -81,6 +80,6 @@ recommendation: APPROVE
 
 userVerdict: APPROVE_WITH_NOTES
 
-reportPath: `.omo/evidence/read-only-global-state-aggregator-hardening-review.md`
+reportPath: `docs/reviews/read-only-global-state-aggregator-hardening-review.md`
 
 blockers: None.

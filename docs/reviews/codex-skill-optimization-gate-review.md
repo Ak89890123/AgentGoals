@@ -23,7 +23,7 @@ The first review found contradictory completion metadata, stale active paths, fu
 - Marked CONTRACT, PLAN, and EVIDENCE completed with aligned dates, paths, review verdict, and evidence status.
 - Replaced future implementation and pending-gate language with the implemented, reviewed state.
 - Converted Open Decisions into settled current boundaries.
-- Updated README and AGENTS references to `goals/completed/codex-skill-optimization/`.
+- Updated README and AGENTS references to the completed umbrella Goal documentation.
 - Updated the patched `goal-preflight` proposal to distinguish its historical proposal boundary from the completed review, approval, patch, and verification.
 
 ## Final Independent Re-review

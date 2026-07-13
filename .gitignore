@@ -12,7 +12,4 @@ build/
 *.spec
 STATE.json
 STATE.md
-
-# Superseded local QA transcripts; final candidate evidence lives in Goal EVIDENCE.md.
-.omo/evidence/portable-goal-onboarding-toolkit-manual-qa.md
-.omo/evidence/portable-goal-onboarding-toolkit-manual-qa-evidence.md
+/goals/

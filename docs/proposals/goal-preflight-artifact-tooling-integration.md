@@ -11,7 +11,7 @@ separate explicit apply confirmation.
 
 ## Baseline and Scope
 
-- Proposed global file: `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md`
+- Proposed global file: `<installed-goal-preflight-skill>\SKILL.md`
 - Baseline SHA-256 (2026-07-11):
   `F8256FDE7511CAC2481BC27181C19EBAC84CF67960064CE23AE5A7F8E40FCE83`
 - Proposed repo-local tool: `python -m goal_lifecycle.artifact_tool`

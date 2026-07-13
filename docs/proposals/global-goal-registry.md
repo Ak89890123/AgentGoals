@@ -6,7 +6,7 @@ title: Global Goal Lifecycle Registry Proposal
 status: patched
 created: 2026-07-07
 updated: 2026-07-07
-target_root: C:\Users\jimmy0302\.codex\goal-lifecycle
+target_root: <global-codex-root>\goal-lifecycle
 review:
   required: true
   verdict: PASS
@@ -27,7 +27,7 @@ tags:
 
 Create a narrow, review-gated global registry location for federated Goal Lifecycle STATE aggregation.
 
-This proposal does not authorize or perform mutation of `C:\Users\jimmy0302\.codex`. It defines the intended global files, schema shape, verification, rollback, and approval boundary.
+This proposal does not authorize or perform mutation of the operator-supplied global `.codex` root. It defines the intended global files, schema shape, verification, rollback, and approval boundary.
 
 ## Selected Topology
 
@@ -43,15 +43,15 @@ Use a federated STATE model:
 Candidate root:
 
 ```text
-C:\Users\jimmy0302\.codex\goal-lifecycle\
+<global-codex-root>\goal-lifecycle\
 ```
 
 Proposed files:
 
 ```text
-C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json
-C:\Users\jimmy0302\.codex\goal-lifecycle\STATE.json
-C:\Users\jimmy0302\.codex\goal-lifecycle\STATE.md
+<global-codex-root>\goal-lifecycle\REGISTRY.json
+<global-codex-root>\goal-lifecycle\STATE.json
+<global-codex-root>\goal-lifecycle\STATE.md
 ```
 
 Initial patch should create only `REGISTRY.json` unless the implementation includes a reviewed read-only aggregator that can generate `STATE.json` and `STATE.md` from repo-local STATE files.
@@ -68,9 +68,9 @@ Initial global registry content should include this harness repo only:
     {
       "id": "goal-life-cycle",
       "label": "Goal Life Cycle Harness",
-      "repo_root": "C:/devhome/goal life cycle",
-      "goal_root": "C:/devhome/goal life cycle/goals",
-      "state_path": "C:/devhome/goal life cycle/outputs/STATE.json",
+      "repo_root": "<repo-root>",
+      "goal_root": "<repo-root>/goals",
+      "state_path": "<repo-root>/outputs/STATE.json",
       "scope": "harness",
       "project": "goal life cycle",
       "active": true,
@@ -204,7 +204,7 @@ APPROVE_GLOBAL_GOAL_REGISTRY_PATCH
 
 Approval is scoped only to:
 
-- creating or updating `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`;
+- creating or updating `<global-codex-root>\goal-lifecycle\REGISTRY.json`;
 - creating the parent directory if missing;
 - creating timestamped backups for changed files.
 
@@ -216,11 +216,11 @@ Applied on 2026-07-07 after explicit approval token.
 
 Created global directory:
 
-- `C:\Users\jimmy0302\.codex\goal-lifecycle`
+- `<global-codex-root>\goal-lifecycle`
 
 Created global file:
 
-- `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`
+- `<global-codex-root>\goal-lifecycle\REGISTRY.json`
 
 Backup:
 
@@ -243,7 +243,7 @@ Post-patch verification:
 - Global JSON parsed successfully.
 - Target directory contains only `REGISTRY.json`.
 - Registry contains one active root: `goal-life-cycle`.
-- Registered `state_path` exists: `C:/devhome/goal life cycle/outputs/STATE.json`.
+- Registered `state_path` exists under the selected `<repo-root>`.
 - No hooks, skills, RTK, routing, memory, provider config, watcher, daemon, or source goal files were changed by the global patch.
 - `.\\.venv\\Scripts\\python -m pytest` passed: 16 tests.
 - `goal_lifecycle.reconcile` regenerated repo-local STATE.

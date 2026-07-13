@@ -21,7 +21,9 @@
     "artifacts",
     "directories",
     "preserved_files",
-    "message"
+    "message",
+    "registration",
+    "recovery"
   ],
   "properties": {
     "version": { "const": 1 },
@@ -33,7 +35,8 @@
         "registration_required",
         "global_failed",
         "global_issues",
-        "visibility_verified"
+        "visibility_verified",
+        "recovery_required"
       ]
     },
     "exit_code": { "enum": [0, 1, 2] },
@@ -80,7 +83,14 @@
       "type": "array",
       "items": { "$ref": "#/$defs/preserved" }
     },
-    "message": { "type": ["string", "null"] }
+    "message": { "type": ["string", "null"] },
+    "registration": { "$ref": "#/$defs/registration" },
+    "recovery": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/recovery" }
+      ]
+    }
   },
   "allOf": [
     {
@@ -92,7 +102,7 @@
       "then": { "properties": { "exit_code": { "const": 2 } } }
     },
     {
-      "if": { "properties": { "outcome": { "enum": ["conflict", "local_failed", "global_failed"] } } },
+      "if": { "properties": { "outcome": { "enum": ["conflict", "local_failed", "global_failed", "recovery_required"] } } },
       "then": { "properties": { "exit_code": { "const": 1 } } }
     },
     {
@@ -130,11 +140,40 @@
       "if": {
         "properties": {
           "outcome": {
-            "enum": ["dry_run_ready", "conflict", "local_failed", "registration_required", "global_failed"]
+            "enum": ["dry_run_ready", "conflict", "local_failed", "registration_required", "global_failed", "recovery_required"]
           }
         }
       },
       "then": { "properties": { "visibility_verified": { "const": false } } }
+    },
+    {
+      "if": { "properties": { "outcome": { "const": "recovery_required" } }, "required": ["outcome"] },
+      "then": {
+        "properties": {
+          "exit_code": { "const": 1 },
+          "registered": { "const": false },
+          "visibility_verified": { "const": false },
+          "recovery": {
+            "type": "object",
+            "properties": { "status": { "const": "recovery_required" } },
+            "required": ["status"]
+          }
+        },
+        "required": ["recovery"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "recovery": {
+            "type": "object",
+            "properties": { "status": { "const": "recovery_required" } },
+            "required": ["status"]
+          }
+        },
+        "required": ["recovery"]
+      },
+      "then": { "properties": { "outcome": { "const": "recovery_required" } } }
     }
   ],
   "$defs": {
@@ -257,6 +296,97 @@
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "action": { "enum": ["created", "existing"] }
+      }
+    },
+    "registration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "authorized",
+        "status",
+        "global_registry_path",
+        "before_sha256",
+        "plan_sha256",
+        "proposed_entry",
+        "planned_write_set",
+        "condition"
+      ],
+      "properties": {
+        "requested": { "type": "boolean" },
+        "authorized": { "type": "boolean" },
+        "status": {
+          "enum": [
+            "not_requested",
+            "rejected",
+            "not_published",
+            "already_registered",
+            "published",
+            "restored",
+            "recovery_required"
+          ]
+        },
+        "global_registry_path": { "type": ["string", "null"] },
+        "before_sha256": { "type": ["string", "null"], "pattern": "^(?:[a-f0-9]{64})?$" },
+        "plan_sha256": { "type": ["string", "null"], "pattern": "^(?:[a-f0-9]{64})?$" },
+        "proposed_entry": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/global_root" }
+          ]
+        },
+        "planned_write_set": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "condition": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "requested": { "const": false } }, "required": ["requested"] },
+          "then": { "properties": { "authorized": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "authorized": { "const": true } }, "required": ["authorized"] },
+          "then": { "properties": { "requested": { "const": true } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "not_requested" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "requested": { "const": false },
+              "authorized": { "const": false }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "published" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "requested": { "const": true },
+              "authorized": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "path", "before_sha256", "after_sha256", "current_sha256"],
+      "properties": {
+        "status": { "enum": ["restored", "recovery_required"] },
+        "path": { "type": "string", "minLength": 1 },
+        "before_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "after_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "current_sha256": {
+          "type": "string",
+          "oneOf": [
+            { "const": "missing" },
+            { "pattern": "^[a-f0-9]{64}$" }
+          ]
+        }
       }
     }
   }

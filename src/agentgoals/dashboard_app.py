@@ -18,6 +18,7 @@ from agentgoals.dashboard import (
     DashboardFilters,
     DashboardModel,
     DashboardSession,
+    LifecycleGroup,
     RepositoryGroup,
     filter_dashboard_entries,
     group_dashboard_entries,
@@ -51,6 +52,30 @@ COLORS = {
 COLUMN_AUTOFIT_MAX_WIDTH = 640
 COLUMN_AUTOFIT_PADDING = 24
 DASHBOARD_ICON_NAME = "agentgoals-target"
+DEFAULT_WATCH_INTERVAL_MS = 1000
+MIN_WATCH_INTERVAL_MS = 50
+MAX_WATCH_INTERVAL_MS = 60_000
+
+
+def state_file_signature(path: Path) -> tuple[int, int, int] | None:
+    """Return a cheap file-change signature for the development watcher."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    return (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size)
+
+
+def parse_watch_interval(value: str) -> int:
+    try:
+        interval = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("watch interval must be an integer number of milliseconds") from exc
+    if not MIN_WATCH_INTERVAL_MS <= interval <= MAX_WATCH_INTERVAL_MS:
+        raise argparse.ArgumentTypeError(
+            f"watch interval must be between {MIN_WATCH_INTERVAL_MS} and {MAX_WATCH_INTERVAL_MS} milliseconds"
+        )
+    return interval
 
 
 def dashboard_asset_path(filename: str) -> Path:
@@ -73,6 +98,8 @@ TRANSLATIONS = {
         "review": "Review",
         "stale": "Stale",
         "completed": "Completed",
+        "active": "Active",
+        "frozen": "Frozen",
         "status": "Status",
         "project": "Project",
         "owner": "Owner",
@@ -91,6 +118,7 @@ TRANSLATIONS = {
         "exact_gate": "Exact Gate",
         "issues": "Issues",
         "read_only": "READ ONLY  •  CTRL+R REFRESH  •  CTRL+F SEARCH",
+        "live_reload_on": "LIVE RELOAD ON",
         "select_goal": "Select a Goal",
         "no_source": "No source selected",
         "no_matching_goal": "No matching Goal",
@@ -101,11 +129,14 @@ TRANSLATIONS = {
         "no_runnable_repository": "No runnable Goal in this repository",
         "repository_health": "Repository summary derived from its registered Goals",
         "repository_issues": "Select a Goal to inspect source artifacts and exact lifecycle gates",
+        "folder_summary": "{folder}  ·  {total} Goals",
+        "folder_issues": "Expand this folder and select a Goal to inspect its source artifacts",
         "priority_queue_owner": "Priority {priority}  ·  Queue {queue}  ·  {owner}",
         "no_next_action": "No explicit next action recorded",
         "waiting_on": "Waiting on {dependencies}",
         "showing": "showing {count}",
         "goals_refreshed": "{count} Goals  •  refreshed {elapsed:.1f} ms  •  generated {generated}",
+        "goals_live_reloaded": "{count} Goals  •  live reloaded {elapsed:.1f} ms  •  generated {generated}",
         "startup": "startup {elapsed:.1f} ms",
         "load_error": "LOAD ERROR",
         "open_error": "OPEN ERROR",
@@ -134,6 +165,8 @@ TRANSLATIONS = {
         "review": "待審查",
         "stale": "過期",
         "completed": "已完成",
+        "active": "進行中",
+        "frozen": "已凍結",
         "status": "狀態",
         "project": "專案",
         "owner": "負責人",
@@ -152,6 +185,7 @@ TRANSLATIONS = {
         "exact_gate": "目前關卡",
         "issues": "問題",
         "read_only": "唯讀  •  CTRL+R 重新整理  •  CTRL+F 搜尋",
+        "live_reload_on": "即時重新整理已啟用",
         "select_goal": "選取一個目標",
         "no_source": "尚未選取來源",
         "no_matching_goal": "沒有符合的目標",
@@ -162,11 +196,14 @@ TRANSLATIONS = {
         "no_runnable_repository": "此儲存庫目前沒有可執行目標",
         "repository_health": "此摘要由已註冊目標的健康狀態彙整而成",
         "repository_issues": "請選取目標以檢視來源文件與目前關卡",
+        "folder_summary": "{folder}  ·  共 {total} 個目標",
+        "folder_issues": "請展開此資料夾並選取目標，以檢視來源文件",
         "priority_queue_owner": "優先度 {priority}  ·  佇列 {queue}  ·  {owner}",
         "no_next_action": "尚未記錄明確的下一步",
         "waiting_on": "等待：{dependencies}",
         "showing": "顯示 {count} 項",
         "goals_refreshed": "{count} 個目標  •  已重新整理 {elapsed:.1f} ms  •  產生於 {generated}",
+        "goals_live_reloaded": "{count} 個目標  •  已即時重新整理 {elapsed:.1f} ms  •  產生於 {generated}",
         "startup": "啟動 {elapsed:.1f} ms",
         "load_error": "載入錯誤",
         "open_error": "開啟錯誤",
@@ -266,20 +303,33 @@ class MetricCard(tk.Frame):
 
 
 class DashboardApplication:
-    def __init__(self, root: tk.Tk, state_path: Path, *, startup_started: float | None = None) -> None:
+    def __init__(
+        self,
+        root: tk.Tk,
+        state_path: Path,
+        *,
+        startup_started: float | None = None,
+        watch: bool = False,
+        watch_interval_ms: int = DEFAULT_WATCH_INTERVAL_MS,
+    ) -> None:
         self.root = root
         self.state_path = state_path.resolve()
+        self.watch_enabled = watch
+        self.watch_interval_ms = parse_watch_interval(str(watch_interval_ms))
         self.session = DashboardSession(self.state_path)
         self.model: DashboardModel | None = None
         self.visible_entries: list[DashboardEntry] = []
         self.entry_by_key: dict[str, DashboardEntry] = {}
         self.repository_by_iid: dict[str, RepositoryGroup] = {}
+        self.lifecycle_by_iid: dict[str, LifecycleGroup] = {}
         self._filter_job: str | None = None
         self._resize_job: str | None = None
+        self._watch_job: str | None = None
         self._resizing_column: str | None = None
         self._manual_column_widths: dict[str, int] = {}
         self._startup_started = startup_started or time.perf_counter()
         self.last_error: str | None = None
+        self._state_signature = state_file_signature(self.state_path)
         self.detail_wrapped_labels: list[tk.Label] = []
 
         self.search_var = tk.StringVar()
@@ -301,8 +351,11 @@ class DashboardApplication:
         self._configure_styles()
         self._build_layout()
         self._bind_shortcuts()
+        self._update_footer()
         self.root.after_idle(self._apply_responsive_layout)
         self.refresh(initial=True)
+        if self.watch_enabled:
+            self._schedule_state_watch()
 
     def _t(self, key: str, **values: object) -> str:
         language = {"繁體中文": "zh_TW", "English": "en"}.get(self.language_var.get(), "en")
@@ -340,7 +393,7 @@ class DashboardApplication:
         self.observatory_label.configure(text=self._t("observatory"))
         self.language_label.configure(text=self._t("language").upper())
         self.refresh_button.configure(text=f"↻  {self._t('refresh').upper()}")
-        self.footer_label.configure(text=self._t("read_only"))
+        self._update_footer()
         for key, card in self.metric_cards.items():
             card.set_label(self._t("review") if key == "review_pending" else self._t(key))
         for key, label in self.filter_labels.items():
@@ -360,6 +413,12 @@ class DashboardApplication:
         self.root_var.set(current_filters["root"])
         self.health_var.set(self._display_filter_value(current_filters["health"]))
         self.apply_filters(select_goal=selected[0] if selected and selected[0] in self.entry_by_key else None)
+
+    def _update_footer(self) -> None:
+        footer = self._t("read_only")
+        if self.watch_enabled:
+            footer += f"  •  {self._t('live_reload_on')}"
+        self.footer_label.configure(text=footer)
 
     def _configure_window(self) -> None:
         self.root.title(self._t("app_title"))
@@ -663,6 +722,7 @@ class DashboardApplication:
             ("complete", COLORS["complete_dark"], COLORS["muted"]),
             ("neutral", COLORS["panel"], COLORS["text"]),
             ("repository", COLORS["blue_dark"], COLORS["text"]),
+            ("lifecycle", COLORS["panel_high"], COLORS["muted"]),
         ):
             self.tree.tag_configure(tone, background=background, foreground=foreground)
 
@@ -891,20 +951,42 @@ class DashboardApplication:
             except tk.TclError:
                 pass
 
-    def refresh(self, initial: bool = False) -> None:
+    def _selected_goal_key(self) -> str | None:
+        selection = self.tree.selection()
+        if selection and selection[0] in self.entry_by_key:
+            return selection[0]
+        return None
+
+    def _schedule_state_watch(self) -> None:
+        if self._watch_job is not None:
+            self.root.after_cancel(self._watch_job)
+        self._watch_job = self.root.after(self.watch_interval_ms, self._poll_state_file)
+
+    def _poll_state_file(self) -> None:
+        self._watch_job = None
+        signature = state_file_signature(self.state_path)
+        if signature != self._state_signature:
+            self._state_signature = signature
+            self.refresh(trigger="watch")
+        if self.watch_enabled:
+            self._schedule_state_watch()
+
+    def refresh(self, initial: bool = False, *, trigger: str = "manual") -> None:
         started = time.perf_counter()
+        selected_goal = self._selected_goal_key()
         try:
             self.model = self.session.refresh()
             self.last_error = None
             self.entry_by_key = {entry.goal_key: entry for entry in self.model.entries}
             self._update_filter_options()
             self._update_metrics()
-            self.apply_filters(select_goal=self.model.next_goal or self.model.next_planned_goal)
+            self.apply_filters(select_goal=selected_goal)
             elapsed_ms = (time.perf_counter() - started) * 1000
             startup_ms = (time.perf_counter() - self._startup_started) * 1000
+            refresh_key = "goals_live_reloaded" if trigger == "watch" else "goals_refreshed"
             self.status_line.set(
                 self._t(
-                    "goals_refreshed",
+                    refresh_key,
                     count=len(self.model.entries),
                     elapsed=elapsed_ms,
                     generated=self.model.generated_at or "unknown",
@@ -915,12 +997,15 @@ class DashboardApplication:
             self.last_error = str(exc)
             self.entry_by_key.clear()
             self.repository_by_iid.clear()
+            self.lifecycle_by_iid.clear()
             self.visible_entries.clear()
             for item in self.tree.get_children():
                 self.tree.delete(item)
             self.status_line.set(f"{self._t('load_error')}  •  {exc}")
-            if not initial:
+            if not initial and trigger != "watch":
                 messagebox.showerror("AgentGoals", str(exc), parent=self.root)
+        finally:
+            self._state_signature = state_file_signature(self.state_path)
 
     def _update_filter_options(self) -> None:
         if self.model is None:
@@ -953,10 +1038,22 @@ class DashboardApplication:
             self.root.after_cancel(self._filter_job)
         self._filter_job = self.root.after(80, self.apply_filters)
 
+    def _capture_tree_open_state(self) -> dict[str, bool]:
+        open_state: dict[str, bool] = {}
+
+        def visit(parent: str = "") -> None:
+            for item in self.tree.get_children(parent):
+                open_state[item] = bool(self.tree.item(item, "open"))
+                visit(item)
+
+        visit()
+        return open_state
+
     def apply_filters(self, select_goal: str | None = None) -> None:
         self._filter_job = None
         if self.model is None:
             return
+        open_state = self._capture_tree_open_state()
         filters = DashboardFilters(
             query=self.search_var.get(),
             status=self._filter_choice(self.status_var.get()),
@@ -968,6 +1065,7 @@ class DashboardApplication:
         self.visible_entries = filter_dashboard_entries(self.model.entries, filters)
         repository_groups = group_dashboard_entries(self.visible_entries)
         self.repository_by_iid.clear()
+        self.lifecycle_by_iid.clear()
         for item in self.tree.get_children():
             self.tree.delete(item)
         for group in repository_groups:
@@ -977,7 +1075,7 @@ class DashboardApplication:
                 "",
                 "end",
                 iid=repo_iid,
-                open=True,
+                open=open_state.get(repo_iid, False),
                 values=(
                     "",
                     group.root_id.upper(),
@@ -989,32 +1087,45 @@ class DashboardApplication:
                 ),
                 tags=("repository",),
             )
-            for entry in group.entries:
+            for lifecycle_group in group.lifecycle_groups:
+                folder_iid = f"folder::{group.root_id}::{lifecycle_group.name}"
+                self.lifecycle_by_iid[folder_iid] = lifecycle_group
                 self.tree.insert(
                     repo_iid,
                     "end",
-                    iid=entry.goal_key,
+                    iid=folder_iid,
+                    open=open_state.get(folder_iid, False),
                     values=(
-                        format_queue_position(entry.queue_position),
-                        entry.title,
-                        self._localize_value(entry.status),
-                        entry.project,
-                        entry.display_owner,
-                        self._localize_value(entry.health_status),
-                        entry.updated or "—",
+                        "",
+                        self._localize_value(lifecycle_group.name),
+                        f"{len(lifecycle_group.entries)} {self._t('goal').upper()}",
+                        "",
+                        "",
+                        "",
+                        "",
                     ),
-                    tags=(status_tone(entry.status),),
+                    tags=("lifecycle",),
                 )
+                for entry in lifecycle_group.entries:
+                    self.tree.insert(
+                        folder_iid,
+                        "end",
+                        iid=entry.goal_key,
+                        values=(
+                            format_queue_position(entry.queue_position),
+                            entry.title,
+                            self._localize_value(entry.status),
+                            entry.project,
+                            entry.display_owner,
+                            self._localize_value(entry.health_status),
+                            entry.updated or "—",
+                        ),
+                        tags=(status_tone(entry.status),),
+                    )
         target = select_goal if select_goal in {entry.goal_key for entry in self.visible_entries} else None
-        if not target and self.visible_entries:
-            target = self.visible_entries[0].goal_key
         if target:
             self.tree.selection_set(target)
             self.tree.focus(target)
-            self.tree.see(target)
-            parent = self.tree.parent(target)
-            if parent:
-                self.tree.see(parent)
             self._show_detail(self.entry_by_key[target])
         else:
             self._clear_detail()
@@ -1027,6 +1138,19 @@ class DashboardApplication:
             self._show_detail(self.entry_by_key[selection[0]])
         elif selection and selection[0] in self.repository_by_iid:
             self._show_repository_detail(self.repository_by_iid[selection[0]])
+        elif selection and selection[0] in self.lifecycle_by_iid:
+            self._show_lifecycle_detail(self.lifecycle_by_iid[selection[0]])
+
+    def _show_lifecycle_detail(self, group: LifecycleGroup) -> None:
+        folder = self._localize_value(group.name)
+        self.detail_title.set(folder)
+        self.detail_key.set(self._t("folder_summary", folder=folder, total=len(group.entries)))
+        self.detail_meta.set("")
+        self.detail_gate.set("")
+        self.detail_health.set("")
+        self.detail_issues.set(self._t("folder_issues"))
+        for button in self.path_buttons.values():
+            button.configure(state="disabled")
 
     def _show_repository_detail(self, group: RepositoryGroup) -> None:
         self.detail_title.set(group.root_id)
@@ -1134,6 +1258,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--benchmark", action="store_true", help="Measure validated STATE refresh without opening UI.")
     parser.add_argument("--iterations", type=int, default=5)
     parser.add_argument("--smoke", action="store_true", help="Create and lay out the desktop window, then exit.")
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Development mode: automatically reload the validated STATE when its file changes.",
+    )
+    parser.add_argument(
+        "--watch-interval-ms",
+        type=parse_watch_interval,
+        default=DEFAULT_WATCH_INTERVAL_MS,
+        help=(
+            f"Development watch polling interval ({MIN_WATCH_INTERVAL_MS}-{MAX_WATCH_INTERVAL_MS} ms; "
+            f"default: {DEFAULT_WATCH_INTERVAL_MS})."
+        ),
+    )
     parser.add_argument("--probe-output", type=Path, help="Write benchmark or smoke JSON to a file for windowed builds.")
     return parser
 
@@ -1183,7 +1321,13 @@ def main() -> None:
     root = tk.Tk()
     if args.smoke:
         root.withdraw()
-    app = DashboardApplication(root, state_path, startup_started=startup_started)
+    app = DashboardApplication(
+        root,
+        state_path,
+        startup_started=startup_started,
+        watch=args.watch,
+        watch_interval_ms=args.watch_interval_ms,
+    )
     if args.smoke:
         root.update_idletasks()
         payload, exit_code = build_smoke_result(

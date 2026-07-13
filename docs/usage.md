@@ -45,7 +45,7 @@ canonical Goal-key visibility:
 .\.venv\Scripts\python -m agentgoals.run `
   --registry registry\REGISTRY.json `
   --out outputs `
-  --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --global-registry <absolute-global-registry> `
   --global-out outputs\global `
   --require-global `
   --json
@@ -154,7 +154,7 @@ To continue through the registered global STATE:
 .\.venv\Scripts\python -m agentgoals.run `
   --registry registry\REGISTRY.json `
   --out outputs `
-  --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --global-registry <absolute-global-registry> `
   --global-out outputs\global `
   --require-global
 ```
@@ -225,7 +225,7 @@ Query registered repo STATE files directly without writing aggregate output:
 
 ```powershell
 .\.venv\Scripts\python -m agentgoals.queue `
-  --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --registry <absolute-global-registry> `
   --json
 ```
 
@@ -285,6 +285,17 @@ Package and verify:
 ```
 
 `build_dashboard.ps1` creates an onedir windowed package at `dist\agentgoals-dashboard\AgentGoals`. Onedir is intentional: it avoids one-file extraction latency and keeps cold start inside the Contract budget. Do not move `AgentGoals.exe` away from its `_internal` directory. Every build verifies the bundled schema hash and launches the packaged application in smoke mode. It uses the current global STATE when available and otherwise falls back to `fixtures\dashboard\clean-state.json`; `-SmokeStatePath` can select an explicit schema-valid STATE for release verification.
+
+For dashboard development, opt into automatic reload of the validated STATE file with the Tk event loop:
+
+```powershell
+.\.venv\Scripts\python -m agentgoals.dashboard_app `
+  --state outputs\global\STATE.json `
+  --watch `
+  --watch-interval-ms 1000
+```
+
+`--watch` is development-only and off by default. It watches only the selected `STATE.json`; it does not reconcile Goals, edit source artifacts, start a background service, or change packaged-dashboard behavior. The existing `Ctrl+R` refresh remains available in both modes.
 
 The build fails if the bundled Goal STATE schema differs from the source schema. When
 `outputs\global\STATE.json` exists, it also launches the packaged executable in hidden

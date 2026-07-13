@@ -27,6 +27,24 @@ jobs:
       - run: agentgoals doctor --json
       - run: goal-lifecycle --version
 
+  package-cross-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - run: python scripts/verify_package_artifacts.py --dist-dir dist
+      - run: python scripts/package_smoke.py --dist-dir dist --artifact wheel --venv-dir .wheel-smoke
+      - run: python scripts/package_smoke.py --dist-dir dist --artifact sdist --venv-dir .sdist-smoke
+
   package-smoke:
     runs-on: ubuntu-latest
     steps:
@@ -37,22 +55,14 @@ jobs:
       - run: python -m pip install --upgrade pip build twine pipx uv
       - run: python -m build
       - run: python -m twine check dist/*
-      - name: Reject machine-local paths and bundled virtual environments
+      - run: python scripts/verify_package_artifacts.py --dist-dir dist
+      - name: Install sdist in a disposable environment
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import zipfile
-
-          wheel = next(Path("dist").glob("*.whl"))
-          with zipfile.ZipFile(wheel) as archive:
-              names = archive.namelist()
-              assert not any(".venv" in name for name in names)
-              for name in names:
-                  data = archive.read(name).lower()
-                  assert b"c:\\devhome" not in data
-                  assert b"c:\\users\\" not in data
-                  assert b"/home/runner/" not in data
-          PY
+          python -m venv .sdist-smoke
+          .sdist-smoke/bin/python -m pip install dist/*.tar.gz
+          .sdist-smoke/bin/agentgoals --version
+          .sdist-smoke/bin/agentgoals doctor --json
+          .sdist-smoke/bin/goal-lifecycle --version
       - run: pipx install dist/*.whl
       - run: agentgoals --version
       - run: agentgoals doctor --json
