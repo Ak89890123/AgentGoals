@@ -343,7 +343,7 @@ def test_canonical_symlink_escape_is_rejected_before_external_report_read() -> N
     report = repo / "outputs" / "ONBOARDING.json"
     report.parent.mkdir(parents=True)
     try:
-        report.symlink_to(external)
+        report.symlink_to(external.resolve())
     except OSError as exc:
         pytest.skip(f"symbolic links unavailable: {exc}")
 
