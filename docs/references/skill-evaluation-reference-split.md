@@ -3,7 +3,7 @@ type: reference
 schema_version: 1
 id: skill-evaluation-reference-split
 title: Skill Evaluation Reference Split
-source_path: C:\devhome\0-DATA\Clippings\技能評估建議.md
+source_path: <reference-source-path>
 created: 2026-07-07
 updated: 2026-07-07
 tags:

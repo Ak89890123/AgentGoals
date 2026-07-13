@@ -6,20 +6,33 @@ The central idea:
 
 - Goal Contract / PLAN / EVIDENCE files remain the source of truth.
 - A centralized STATE is a derived index, similar in spirit to CBM or CodeGraph indexes.
-- Repo-local goals can live under each repo's `goals/active/` and `goals/completed/`.
+- Repo-local goals can live under each repo's active and completed status directories.
 - The global index records known goal roots and summarizes open, blocked, review-pending, and completed work.
 
 ## Current Scope
 
 Build a small read-only harness for Goal Contract lifecycle tracking and use it to gate skill-workflow changes.
 
-The umbrella effort is tracked at:
+## 2026-07-13 Session Wrap-Up
 
-- `goals/completed/codex-skill-optimization/CONTRACT.md`
-- `goals/completed/codex-skill-optimization/PLAN.md`
-- `goals/completed/codex-skill-optimization/EVIDENCE.md`
+**Done**
 
-The first bounded subgoal is the central Goal State Index:
+- Completed and committed `omo-codegraph-cleanup-alignment` as `1e197f4`; the governed CodeGraph init, MCP smoke checks, final review, and Goal STATE completion checks passed.
+- Canonical evidence migration and the active-to-completed Goal move are recorded in the completed Goal's EVIDENCE file.
+
+**WIP**
+
+- Existing onboarding-related edits and new Goal folders remain uncommitted and were intentionally left untouched.
+
+**Next**
+
+- Review and commit the remaining onboarding WIP as a separate coherent change; do not mix it with the completed CodeGraph alignment commit.
+
+**Memory Saved**
+
+- Durable project context is recorded in `AGENTS.md` and the completed Goal evidence; external AgentMemory/Link/Obsidian writes were skipped during this wrap-up.
+
+The first bounded subgoal was the central Goal State Index:
 
 1. Define the central STATE and REGISTRY schemas.
 2. Create fixtures that mimic repo-local and global goal roots.
@@ -32,7 +45,7 @@ The current production model is read-only and federated: each repo generates its
 
 STATE version 2 adds deterministic scheduling. Goal Contracts may declare `scheduling.priority` and `scheduling.depends_on`; repo-local and global STATE derive canonical Goal keys, dependency status, queue positions, `next_goal`, and `next_planned_goal`. Dependencies always take precedence over priority.
 
-The global registry patch is complete at `C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json`. Additional global `.codex` writes still require a separate proposal, independent review, explicit approval, patch, and verification.
+The global registry is supplied by the caller as `<absolute-global-registry>`. Additional global `.codex` writes still require a separate proposal, independent review, explicit approval, patch, and verification.
 
 Multi-repo onboarding is available as an explicit, dry-run-first command. It writes only inside the supplied repository after `--apply`, emits a global-registration proposal instead of applying it, and can verify an already-registered repo in a derived global aggregate. See `docs/onboarding.md`.
 
@@ -44,8 +57,8 @@ the absolute target repository path:
 ```powershell
 agentgoals --version
 agentgoals doctor --json
-agentgoals onboard --repo C:\devhome\legacy-repo --json
-agentgoals onboard --repo C:\devhome\legacy-repo --apply --json
+agentgoals onboard --repo <absolute-repository> --json
+agentgoals onboard --repo <absolute-repository> --apply --json
 ```
 
 Dry-run is the default. `--apply` authorizes repo-local writes for that exact
@@ -60,11 +73,11 @@ Because the distribution name changed, use the explicit replacement and rollback
 sequence in `docs/migration-agentgoals.md`; do not install both distributions in
 the same environment.
 
-For a future GitHub release, install an immutable reviewed tag with either tool:
+For an approved GitHub release, install an immutable reviewed tag from this repository with either tool:
 
 ```powershell
-uv tool install "agentgoals @ git+https://github.com/<OWNER>/AgentGoals.git@v0.2.0"
-pipx install "agentgoals @ git+https://github.com/<OWNER>/AgentGoals.git@v0.2.0"
+uv tool install "agentgoals @ git+https://github.com/Ak89890123/AgentGoals.git@<TAG>"
+pipx install "agentgoals @ git+https://github.com/Ak89890123/AgentGoals.git@<TAG>"
 ```
 
 Upgrade by installing a newer immutable tag. Roll back by reinstalling the prior
@@ -75,9 +88,9 @@ uv tool uninstall agentgoals
 pipx uninstall agentgoals
 ```
 
-`<OWNER>/<REPO>`, the project license, release tag, and artifact hashes are
-release-time inputs. Publishing to GitHub or PyPI requires a separate explicit
-approval and is not performed by this repository-local implementation.
+The release tag, project license, and artifact hashes remain release-time
+inputs. Publishing to GitHub or PyPI requires a separate explicit approval and
+is not performed by this repository-local implementation.
 
 ## Python Setup
 
@@ -123,7 +136,7 @@ Run the read-only global aggregator against the reviewed global registry:
 ```powershell
 $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m agentgoals.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
+.\.venv\Scripts\python -m agentgoals.aggregate --registry <absolute-global-registry> --out outputs\global
 .\.venv\Scripts\python -m agentgoals.validate --state outputs\global\STATE.json
 ```
 
@@ -142,15 +155,15 @@ Query the current global queue directly from registered repo STATE files without
 
 ```powershell
 .\.venv\Scripts\python -m agentgoals.queue `
-  --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --registry <absolute-global-registry> `
   --json
 ```
 
 Check or apply onboarding for one explicit repository:
 
 ```powershell
-agentgoals onboard --repo C:\devhome\legacy-repo --json
-agentgoals onboard --repo C:\devhome\legacy-repo --apply --json
+agentgoals onboard --repo <absolute-repository> --json
+agentgoals onboard --repo <absolute-repository> --apply --json
 ```
 
 Source scheduling metadata belongs in Contract frontmatter:
@@ -180,7 +193,7 @@ Add the reviewed global registry to continue through global aggregation and vali
 .\.venv\Scripts\python -m agentgoals.run `
   --registry registry/REGISTRY.json `
   --out outputs `
-  --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
+  --global-registry <absolute-global-registry> `
   --global-out outputs\global `
   --json
 ```
@@ -201,7 +214,7 @@ agentgoals refresh --repo <absolute-repository> --global-registry <absolute-glob
 
 Authorized completion is a deterministic software transaction: `agentgoals complete --repo <absolute-repository> --goal-id <goal-id> --global-registry <absolute-global-registry> --json` validates completion fields, moves the Goal from `active` to `completed`, and invokes refresh exactly once. It does not use LLM semantic classification.
 
-This command derives the repo registry and output paths, requires global aggregation, and never classifies prose. A successful authoritative Goal-file write or authorized `goals/active/` to `goals/completed/` move is the mechanical trigger; previews, dry-runs, and read-only assessments are not.
+This command derives the repo registry and output paths, requires global aggregation, and never classifies prose. A successful authoritative Goal-file write or authorized active-to-completed status-directory move is the mechanical trigger; previews, dry-runs, and read-only assessments are not.
 
 The orchestrator rejects `--out` and configured global output paths under the user's global `.codex` directory.
 
@@ -307,21 +320,12 @@ write only their isolated fixture workspaces under `--out` and then produce
 ## Key Files
 
 - `HANDOFF.md`: conversation handoff and settled decisions.
-- `goals/completed/codex-skill-optimization/CONTRACT.md`: umbrella contract for the full CODEX Skill optimization effort.
-- `goals/completed/codex-skill-optimization/PLAN.md`: umbrella execution plan.
-- `goals/completed/codex-skill-optimization/EVIDENCE.md`: umbrella verification/evidence log.
-- `goals/completed/goal-state-index/CONTRACT.md`: completed project contract.
-- `goals/completed/goal-state-index/PLAN.md`: completed execution plan.
-- `goals/completed/goal-state-index/EVIDENCE.md`: completed verification/evidence log.
-- `goals/completed/production-state-location/`: production STATE topology decision and global registry patch evidence.
 - `docs/design.md`: system design notes.
 - `docs/usage.md`: operator flow and safe-use boundaries.
 - `docs/session-handoff.md`: deterministic session close/resume protocol and fallback rules.
 - `docs/desktop-shell-spike.md`: AgentGoals desktop-shell decision and measured performance evidence.
 - `docs/production-readiness.md`: read-only production review packet.
 - `docs/production-state-topology.md`: federated repo-local STATE and global registry topology.
-- `goals/completed/deterministic-lifecycle-orchestration/`: completed implementation goal for the deterministic single-command operator flow.
-- `goals/completed/global-goal-queue-scheduling/`: completed STATE v2 scheduling model and deterministic local/global Goal queue.
 - `docs/proposals/global-goal-registry.md`: proposed global `.codex` registry creation gate.
 - `docs/global-registry-schema-notes.md`: schema notes for federated aggregation registry entries.
 - `schemas/global-registry.schema.json`: executable schema for global registry entries.

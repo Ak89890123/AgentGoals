@@ -6,7 +6,7 @@ title: Goal Preflight Skill Upgrade Proposal
 status: patched
 created: 2026-07-07
 updated: 2026-07-07
-target_skill: C:\Users\jimmy0302\.codex\skills\goal-preflight
+target_skill: <installed-goal-preflight-skill>
 review:
   required: true
   verdict: PASS
@@ -27,18 +27,18 @@ tags:
 
 Propose a narrow, review-gated upgrade to the global `goal-preflight` skill using evidence from this harness.
 
-This proposal did not itself authorize or perform mutation of `C:\Users\jimmy0302\.codex\skills\goal-preflight`. It defined the patch scope that subsequently passed independent review, explicit approval, patch, and verification.
+This proposal did not itself authorize or perform mutation of the installed `goal-preflight` skill. It defined the patch scope that subsequently passed independent review, explicit approval, patch, and verification.
 
 ## Baseline
 
 Target files:
 
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md`
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\references\goal-contract-template.md`
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\references\plan-template.md`
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\references\evidence-template.md`
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\references\acceptance-modules.md`
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\references\ai-company-os-routing.md`
+- `<installed-goal-preflight-skill>\SKILL.md`
+- `<installed-goal-preflight-skill>\references\goal-contract-template.md`
+- `<installed-goal-preflight-skill>\references\acceptance-modules.md`
+- `<installed-goal-preflight-skill>\references\evidence-template.md`
+- `<installed-goal-preflight-skill>\references\plan-template.md`
+- `<installed-goal-preflight-skill>\references\ai-company-os-routing.md`
 
 Current `SKILL.md` SHA-256:
 
@@ -156,7 +156,7 @@ Before patching, create timestamped backups for every edited global file.
 
 Minimum backup targets:
 
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md`
+- `<installed-goal-preflight-skill>\SKILL.md`
 - Any reference file edited by the approved patch.
 
 Rollback:
@@ -236,11 +236,11 @@ Applied on 2026-07-07 after explicit approval token.
 
 Edited global file:
 
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md`
+- `<installed-goal-preflight-skill>\SKILL.md`
 
 Created backup:
 
-- `C:\Users\jimmy0302\.codex\skills\goal-preflight\SKILL.md.bak-20260707T113249`
+- `<installed-goal-preflight-skill>\SKILL.md.bak-<timestamp>`
 
 New `SKILL.md` SHA-256:
 

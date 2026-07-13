@@ -114,6 +114,10 @@ def test_patch_verification_rejects_frontmatter_changes() -> None:
     assert result["targets"][0]["frontmatter_unchanged"] is False
 
 
+@pytest.mark.skipif(
+    not Path("goals/completed/goal-session-handoff-integration/patches/END-aab-jixu.apply_patch").is_file(),
+    reason="local historical Skill fixtures are intentionally outside the public checkout",
+)
 def test_versioned_skill_instruction_preservation_cases_pass_against_exact_proposal() -> None:
     # Given: immutable pre-install Skill backups and the exact reviewed patch.
     root = make_workspace("session-eval-versioned-proposal")

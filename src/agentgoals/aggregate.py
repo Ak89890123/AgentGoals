@@ -83,6 +83,12 @@ def load_global_registry(path: Path) -> list[GlobalRegistryRoot]:
                 active=bool(item.get("active", True)),
             )
         )
+    ids = [root.id for root in roots]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Global registry contains duplicate root IDs")
+    repo_roots = [str(root.repo_root.resolve()).casefold() for root in roots]
+    if len(repo_roots) != len(set(repo_roots)):
+        raise ValueError("Global registry contains duplicate repository paths")
     return roots
 
 
