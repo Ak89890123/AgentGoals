@@ -397,11 +397,11 @@ def test_registered_resume_context_is_less_than_half_of_identical_source_scenari
     state_path = repo / "outputs" / "goal-lifecycle" / "STATE.json"
     global_registry = repo / "operator" / "REGISTRY.json"
     write_global_registry(global_registry, [global_root(repo, "registered-repo", state_path)])
-    source_bytes = sum(
-        len(path.read_bytes())
+    source_payload = b"".join(
+        path.read_text(encoding="utf-8").replace("\r\n", "\n").encode("utf-8")
         for path in sorted((repo / "goals").rglob("*.md"))
     )
-    source_payload = b"".join(path.read_bytes() for path in sorted((repo / "goals").rglob("*.md")))
+    source_bytes = len(source_payload)
 
     result = onboard_repository(repo, apply=True, global_registry_path=global_registry)
     resume_bytes = len(
@@ -409,8 +409,8 @@ def test_registered_resume_context_is_less_than_half_of_identical_source_scenari
     )
 
     assert resume_bytes <= source_bytes * 0.65
-    assert source_bytes == 618
-    assert hashlib.sha256(source_payload).hexdigest() == "84b1cb74bbda64d3a71934cdc9f005105863911a4cd9b246cf99155af423e7e3"
+    assert source_bytes == 580
+    assert hashlib.sha256(source_payload).hexdigest() == "ea70ff2d3940e272b1566fbf89a91a35babdb6ae341de533d14283920822903f"
     assert resume_bytes < 400
     assert len(result.resume["state_sha256"]) == 64
     assert result.registered is True
