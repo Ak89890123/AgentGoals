@@ -37,6 +37,36 @@ def test_registry_schema_rejects_missing_required_field() -> None:
         validate_json_file(invalid, schema)
 
 
+def test_global_registry_schema_accepts_posix_absolute_paths() -> None:
+    workspace = make_workspace("posix-global-registry")
+    registry = workspace / "REGISTRY.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated": "2026-07-13",
+                "roots": [
+                    {
+                        "id": "linux-repo",
+                        "label": "Linux Repo",
+                        "repo_root": "/srv/agentgoals/repo",
+                        "goal_root": "/srv/agentgoals/repo/goals",
+                        "state_path": "/srv/agentgoals/repo/outputs/STATE.json",
+                        "scope": "repo",
+                        "project": "test",
+                        "active": True,
+                        "added": "2026-07-13",
+                        "last_seen": None,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    validate_json_file(registry, Path("schemas/global-registry.schema.json"))
+
+
 def test_state_schema_rejects_unknown_status() -> None:
     workspace = make_workspace("invalid-state")
     schema = Path("schemas/goal-state.schema.json")
