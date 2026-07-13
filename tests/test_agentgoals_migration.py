@@ -31,7 +31,7 @@ def test_agentgoals_is_the_implementation_and_legacy_import_is_an_alias() -> Non
     canonical_version = canonical.__version__
 
     # Then: the legacy package delegates to the canonical implementation.
-    assert legacy.__version__ == canonical_version == "0.2.0"
+    assert legacy.__version__ == canonical_version == "0.2.1"
     assert canonical.__file__ is not None
     assert Path(canonical.__file__).parent.name == "agentgoals"
 
@@ -45,7 +45,7 @@ def test_agentgoals_cli_reports_new_brand_and_legacy_program_name_is_optional(ca
 
     # Then: output uses only the new public product name.
     assert exit_code == 0
-    assert capsys.readouterr().out.strip() == "agentgoals 0.2.0"
+    assert capsys.readouterr().out.strip() == "agentgoals 0.2.1"
 
 
 def test_agentgoals_skill_directories_are_staged_with_matching_frontmatter() -> None:
@@ -98,4 +98,4 @@ def test_legacy_submodule_invocations_delegate_to_canonical_implementation() -> 
 
     # Then: runpy executes the compatibility route without a loader mismatch.
     assert [result.returncode for result in results] == [0, 0]
-    assert results[0].stdout.strip() == "agentgoals 0.2.0"
+    assert results[0].stdout.strip() == "agentgoals 0.2.1"

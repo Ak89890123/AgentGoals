@@ -51,6 +51,22 @@ canonical Goal-key visibility:
   --json
 ```
 
+For installed Skill post-mutation gates, use the shorter deterministic wrapper:
+
+```powershell
+agentgoals refresh --repo <absolute-repository> --global-registry <absolute-global-registry> --json
+```
+
+For an authorized completed-folder migration, use the coupled command rather than a manual move:
+
+```powershell
+agentgoals complete --repo <absolute-repository> --goal-id <goal-id> --global-registry <absolute-global-registry> --json
+```
+
+It validates machine-readable completion fields, performs the `active` to `completed` move, and calls refresh exactly once without LLM semantic routing.
+
+The trigger is an observed successful authoritative file write or lifecycle-directory move, never LLM interpretation. In particular, an authorized move from `goals/active/` to `goals/completed/` must be followed by this command before final handoff. Dry-run and read-only workflows do not trigger it.
+
 Run tests before committing harness changes:
 
 ```powershell
