@@ -1,4 +1,4 @@
-# Production Readiness Review
+﻿# Production Readiness Review
 
 ## Current Verdict
 
@@ -11,8 +11,8 @@ The harness passed independent production-readiness review as a read-only operat
 Included:
 
 - `registry/REGISTRY.json` as the allowlist of scanned goal roots.
-- `src/goal_lifecycle/reconcile.py` as a read-only STATE generator.
-- `src/goal_lifecycle/validate.py` as the JSON Schema validation gate.
+- `src/agentgoals/reconcile.py` as a read-only STATE generator.
+- `src/agentgoals/validate.py` as the JSON Schema validation gate.
 - `outputs/STATE.json` and `outputs/STATE.md` as ignored generated artifacts.
 - `docs/usage.md` as operator guidance.
 
@@ -53,8 +53,8 @@ Run:
 $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 .\.venv\Scripts\python -m pytest
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry\REGISTRY.json --out outputs
-.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry\REGISTRY.json --state outputs\STATE.json
+.\.venv\Scripts\python -m agentgoals.reconcile --registry registry\REGISTRY.json --out outputs
+.\.venv\Scripts\python -m agentgoals.validate --registry registry\REGISTRY.json --state outputs\STATE.json
 ```
 
 Pass condition:

@@ -11,7 +11,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from goal_lifecycle.dashboard import DashboardFilters, build_dashboard, filter_dashboard_entries
+from agentgoals.dashboard import DashboardFilters, build_dashboard, filter_dashboard_entries
 
 
 def make_entry(index: int) -> dict[str, object]:

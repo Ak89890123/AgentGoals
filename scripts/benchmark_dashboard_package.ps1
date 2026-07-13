@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 if (-not $Executable) {
-    $Executable = Join-Path $repoRoot "dist\goal-dashboard\GoalControl\GoalControl.exe"
+    $Executable = Join-Path $repoRoot "dist\agentgoals-dashboard\AgentGoals\AgentGoals.exe"
 }
 if (-not $StatePath) {
     $StatePath = Join-Path $repoRoot "outputs\global\STATE.json"
@@ -27,10 +27,10 @@ $coldStarts = @()
     $coldStarts += $measurement.TotalMilliseconds
 }
 
-$before = @(Get-Process -Name GoalControl -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+$before = @(Get-Process -Name AgentGoals -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
 $process = Start-Process -FilePath $exe -ArgumentList @("--state", $quotedState) -WindowStyle Hidden -PassThru
 Start-Sleep -Seconds 3
-$running = @(Get-Process -Name GoalControl -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.Id })
+$running = @(Get-Process -Name AgentGoals -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.Id })
 $workingSet = ($running | Measure-Object -Property WorkingSet64 -Sum).Sum
 $privateMemory = ($running | Measure-Object -Property PrivateMemorySize64 -Sum).Sum
 $running | Stop-Process -Force

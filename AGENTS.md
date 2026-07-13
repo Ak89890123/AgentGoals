@@ -12,7 +12,7 @@ This repository is a harness for CODEX Skill lifecycle work, centered on Goal Co
 - `docs/references/` stores reference inputs for future skill and lifecycle design.
 - `schemas/` contains draft STATE and REGISTRY schema notes.
 - `fixtures/` is reserved for synthetic goal roots used by reconciler tests.
-- `src/goal_lifecycle/` contains the read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, Goal queue query, atomic output helper, explicit multi-repo onboarding command, versioned session-handoff assessment/evaluation commands, and the Goal Control desktop view model/application.
+- `src/agentgoals/` contains the canonical read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, Goal queue query, atomic output helper, explicit multi-repo onboarding command, versioned session-handoff assessment/evaluation commands, and the AgentGoals desktop view model/application. `src/goal_lifecycle/` is a bounded 0.x compatibility layer only.
 - `apps/goal_dashboard.pyw` is the no-console desktop launcher; `scripts/build_dashboard.ps1` creates the repo-local Windows package.
 - `.omo/evidence/` contains independent review reports for aggregator readiness.
 
@@ -29,17 +29,17 @@ Setup and validation:
 - `.\.venv\Scripts\python -m pip install -r requirements.txt`
 - `.\.venv\Scripts\python -m pytest`
 - `$env:PYTHONPATH=(Resolve-Path src).Path`
-- `.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry/REGISTRY.json --out outputs`
-- `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs/STATE.json`
-- `.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global`
-- `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs\global\STATE.json`
-- `.\.venv\Scripts\python -m goal_lifecycle.run --registry registry/REGISTRY.json --out outputs --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --global-out outputs\global --json`
-- `.\.venv\Scripts\python -m goal_lifecycle.queue --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --json`
-- `.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --json`
-- `.\.venv\Scripts\python -m goal_lifecycle.onboard --repo C:\devhome\legacy-repo --apply --json`
-- `.\.venv\Scripts\python -m goal_lifecycle.session_handoff --report outputs\ONBOARDING.json --state outputs\global\STATE.json`
-- `.\.venv\Scripts\python -m goal_lifecycle.session_eval --help`
-- `.\.venv\Scripts\python -m goal_lifecycle.dashboard_app --state outputs\global\STATE.json`
+- `.\.venv\Scripts\python -m agentgoals.reconcile --registry registry/REGISTRY.json --out outputs`
+- `.\.venv\Scripts\python -m agentgoals.validate --registry registry/REGISTRY.json --state outputs/STATE.json`
+- `.\.venv\Scripts\python -m agentgoals.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global`
+- `.\.venv\Scripts\python -m agentgoals.validate --registry registry/REGISTRY.json --state outputs\global\STATE.json`
+- `.\.venv\Scripts\python -m agentgoals.run --registry registry/REGISTRY.json --out outputs --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --global-out outputs\global --json`
+- `.\.venv\Scripts\python -m agentgoals.queue --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --json`
+- `.\.venv\Scripts\python -m agentgoals.onboard --repo C:\devhome\legacy-repo --json`
+- `.\.venv\Scripts\python -m agentgoals.onboard --repo C:\devhome\legacy-repo --apply --json`
+- `.\.venv\Scripts\python -m agentgoals.session_handoff --report outputs\ONBOARDING.json --state outputs\global\STATE.json`
+- `.\.venv\Scripts\python -m agentgoals.session_eval --help`
+- `.\.venv\Scripts\python -m agentgoals.dashboard_app --state outputs\global\STATE.json`
 - `.\.venv\Scripts\python scripts\benchmark_dashboard.py --entries 1000 --iterations 20`
 - `.\scripts\build_dashboard.ps1`
 - `.\scripts\benchmark_dashboard_package.ps1`
@@ -59,7 +59,7 @@ Useful read-only checks:
 - Put hard ordering in Contract `scheduling.depends_on` and adjustable importance in `scheduling.priority`; never edit derived queue positions.
 - Do not duplicate frontmatter metadata in body sections.
 - Prefer concise, file-backed guidance over generic process text.
-- Put reusable Python code under `src/goal_lifecycle/` and tests under `tests/`.
+- Put reusable Python code under `src/agentgoals/` and tests under `tests/`; add legacy wrappers only under `src/goal_lifecycle/`.
 - Generated `outputs/STATE.json`, `outputs/STATE.md`, and `outputs/global/STATE.*` are ignored because STATE is derived.
 
 Directory-mode goals should use:

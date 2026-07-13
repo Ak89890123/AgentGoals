@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.goal-lifecycle/schemas/goal-registry.schema.json",
+  "$id": "https://local.agentgoals/schemas/goal-registry.schema.json",
   "title": "Goal Registry",
   "type": "object",
   "additionalProperties": false,

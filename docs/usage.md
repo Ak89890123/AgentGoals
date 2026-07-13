@@ -1,4 +1,4 @@
-# Goal Lifecycle Harness Usage
+﻿# AgentGoals Harness Usage
 
 ## Purpose
 
@@ -33,8 +33,8 @@ PowerShell:
 ```powershell
 $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.reconcile --registry registry\REGISTRY.json --out outputs
-.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry\REGISTRY.json --state outputs\STATE.json
+.\.venv\Scripts\python -m agentgoals.reconcile --registry registry\REGISTRY.json --out outputs
+.\.venv\Scripts\python -m agentgoals.validate --registry registry\REGISTRY.json --state outputs\STATE.json
 ```
 
 Global refresh, with one bounded command that chains local reconcile, local validation,
@@ -42,7 +42,7 @@ global aggregation, global validation, operation-ID matching, timestamp ordering
 canonical Goal-key visibility:
 
 ```powershell
-\.\.venv\Scripts\python -m goal_lifecycle.run `
+.\.venv\Scripts\python -m agentgoals.run `
   --registry registry\REGISTRY.json `
   --out outputs `
   --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
@@ -60,13 +60,13 @@ $env:TEMP=(Resolve-Path .tmp).Path; $env:TMP=$env:TEMP
 
 ## Deterministic Goal Artifact Tool
 
-`goal_lifecycle.artifact_tool` materializes an already-decided Goal layout; it
+`agentgoals.artifact_tool` materializes an already-decided Goal layout; it
 does not classify work, infer scope, or grant write permission. It defaults to
 a no-write preview and reports only target paths, actions, and SHA-256 hashes.
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.artifact_tool `
+.\.venv\Scripts\python -m agentgoals.artifact_tool `
   --repo-root <absolute-repository-root> `
   --artifact-root <repository-contained-output-root> `
   --decision <artifact-decision.json>
@@ -89,8 +89,8 @@ result payload after independently confirming those files are the intended
 artifacts:
 
 ```powershell
-python -m goal_lifecycle.artifact_audit --repo-root <repo> --list-receipts --goal-id <goal-id>
-python -m goal_lifecycle.artifact_audit --repo-root <repo> --finalize-pending <receipt-id> --result <hash-only-result.json>
+python -m agentgoals.artifact_audit --repo-root <repo> --list-receipts --goal-id <goal-id>
+python -m agentgoals.artifact_audit --repo-root <repo> --finalize-pending <receipt-id> --result <hash-only-result.json>
 ```
 
 Finalization rereads every listed artifact and refuses to close the receipt if
@@ -103,7 +103,7 @@ finalization was interrupted; inspect it before retrying. Legacy JSONL receipts
 are imported only by an explicit command and are never deleted automatically:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.artifact_audit `
+.\.venv\Scripts\python -m agentgoals.artifact_audit `
   --repo-root <absolute-repository-root> `
   --import-legacy <legacy-receipts.jsonl>
 ```
@@ -111,7 +111,7 @@ are imported only by an explicit command and are never deleted automatically:
 Query receipts without writing anything:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.artifact_audit `
+.\.venv\Scripts\python -m agentgoals.artifact_audit `
   --repo-root <absolute-repository-root> `
   --list-receipts --goal-id <goal-id>
 ```
@@ -129,13 +129,13 @@ Use the orchestrator when the caller should not have to select and inspect each 
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.run --registry registry\REGISTRY.json --out outputs
+.\.venv\Scripts\python -m agentgoals.run --registry registry\REGISTRY.json --out outputs
 ```
 
 To continue through the registered global STATE:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.run `
+.\.venv\Scripts\python -m agentgoals.run `
   --registry registry\REGISTRY.json `
   --out outputs `
   --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
@@ -202,13 +202,13 @@ scheduling:
 Query a generated STATE:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.queue --state outputs\STATE.json
+.\.venv\Scripts\python -m agentgoals.queue --state outputs\STATE.json
 ```
 
 Query registered repo STATE files directly without writing aggregate output:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.queue `
+.\.venv\Scripts\python -m agentgoals.queue `
   --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
   --json
 ```
@@ -231,7 +231,7 @@ Invalid Goals are excluded from queue positions and returned separately with the
 For a repository with an explicit fresh onboarding report and matching validated global STATE:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.session_handoff `
+.\.venv\Scripts\python -m agentgoals.session_handoff `
   --report outputs\ONBOARDING.json `
   --state outputs\global\STATE.json
 ```
@@ -240,15 +240,15 @@ The command is read-only. A valid result selects `next_goal`, or `next_planned_g
 
 Exit code `2` means the fast path was rejected. Report `fallback_reason` and use the existing source/worktree scan. Do not run onboarding with `--apply`, refresh STATE, or mutate registration merely to avoid a fallback. See `docs/session-handoff.md` for the versioned decision table.
 
-## Goal Control Desktop Application
+## AgentGoals Desktop Application
 
-Goal Control consumes `outputs\global\STATE.json` through the existing JSON schema validator and presents a read-only desktop dashboard. It never reconciles, onboards, edits a Goal, writes a registry, or refreshes STATE on the user's behalf.
+AgentGoals consumes `outputs\global\STATE.json` through the existing JSON schema validator and presents a read-only desktop dashboard. It never reconciles, onboards, edits a Goal, writes a registry, or refreshes STATE on the user's behalf.
 
 Development launch:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.dashboard_app --state outputs\global\STATE.json
+.\.venv\Scripts\python -m agentgoals.dashboard_app --state outputs\global\STATE.json
 ```
 
 The application provides:
@@ -268,7 +268,7 @@ Package and verify:
 .\scripts\benchmark_dashboard_package.ps1
 ```
 
-`build_dashboard.ps1` creates an onedir windowed package at `dist\goal-dashboard\GoalControl`. Onedir is intentional: it avoids one-file extraction latency and keeps cold start inside the Contract budget. Do not move `GoalControl.exe` away from its `_internal` directory. Every build verifies the bundled schema hash and launches the packaged application in smoke mode. It uses the current global STATE when available and otherwise falls back to `fixtures\dashboard\clean-state.json`; `-SmokeStatePath` can select an explicit schema-valid STATE for release verification.
+`build_dashboard.ps1` creates an onedir windowed package at `dist\agentgoals-dashboard\AgentGoals`. Onedir is intentional: it avoids one-file extraction latency and keeps cold start inside the Contract budget. Do not move `AgentGoals.exe` away from its `_internal` directory. Every build verifies the bundled schema hash and launches the packaged application in smoke mode. It uses the current global STATE when available and otherwise falls back to `fixtures\dashboard\clean-state.json`; `-SmokeStatePath` can select an explicit schema-valid STATE for release verification.
 
 The build fails if the bundled Goal STATE schema differs from the source schema. When
 `outputs\global\STATE.json` exists, it also launches the packaged executable in hidden
@@ -277,7 +277,7 @@ smoke mode and requires a successful model load before reporting a successful bu
 Machine-readable smoke or benchmark output can be written even though the executable has no console:
 
 ```powershell
-dist\goal-dashboard\GoalControl\GoalControl.exe `
+dist\agentgoals-dashboard\AgentGoals\AgentGoals.exe `
   --state outputs\global\STATE.json `
   --smoke `
   --probe-output outputs\dashboard-smoke.json

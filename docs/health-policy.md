@@ -1,4 +1,4 @@
-# Goal Health Policy
+﻿# Goal Health Policy
 
 Goal health is an optional, deterministic, read-only assessment. Goal Contract,
 PLAN, and EVIDENCE remain authoritative; health findings never change source
@@ -47,12 +47,12 @@ threshold day and becomes stale when `age_days > threshold_days`.
 Use a fixed evaluation date for reproducible output:
 
 ```powershell
-.\.venv\Scripts\python -m goal_lifecycle.reconcile `
+.\.venv\Scripts\python -m agentgoals.reconcile `
   --registry registry\REGISTRY.json `
   --out outputs `
   --evaluation-date 2026-07-20
 
-.\.venv\Scripts\python -m goal_lifecycle.run `
+.\.venv\Scripts\python -m agentgoals.run `
   --registry registry\REGISTRY.json `
   --out outputs `
   --evaluation-date 2026-07-20 `

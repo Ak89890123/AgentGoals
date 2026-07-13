@@ -1,4 +1,4 @@
-# Production State Topology
+﻿# Production State Topology
 
 ## Decision
 
@@ -9,7 +9,7 @@ Use a read-only federated STATE topology as the current production model:
 - central views are rebuilt from registered repo outputs, not from whole-disk scans;
 - Goal Contract, PLAN, and EVIDENCE files remain the source of truth.
 
-Status: this model is the current approved production/operator topology for Goal Lifecycle STATE. It is still read-only: it does not approve writers, watchers, hooks, daemons, scheduled tasks, source goal mutation, or additional global `.codex` writes.
+Status: this model is the current approved production/operator topology for AgentGoals STATE. It is still read-only: it does not approve writers, watchers, hooks, daemons, scheduled tasks, source goal mutation, or additional global `.codex` writes.
 
 ## Why This Shape
 
@@ -75,7 +75,7 @@ Current implementation:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
+.\.venv\Scripts\python -m agentgoals.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
 ```
 
 The command validates the global registry against `schemas/global-registry.schema.json` and validates each repo-local STATE against `schemas/goal-state.schema.json` before merging. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.

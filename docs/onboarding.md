@@ -1,8 +1,8 @@
-# Multi-Repo Goal Onboarding
+# AgentGoals Multi-Repo Onboarding
 
 ## Purpose
 
-The onboarding command prepares one explicitly supplied Git repository for the federated Goal Lifecycle model. It can create conservative repo-local lifecycle scaffolding, generate and validate local derived STATE, emit a global-registry proposal, and verify visibility in a caller-selected derived global aggregate when the repository is already registered.
+The onboarding command prepares one explicitly supplied Git repository for the federated AgentGoals model. It can create conservative repo-local lifecycle scaffolding, generate and validate local derived STATE, emit a global-registry proposal, and verify visibility in a caller-selected derived global aggregate when the repository is already registered.
 
 It does not detect conversational intent, scan for repositories, edit global `.codex`, create Goals, or install a watcher, hook, daemon, or scheduled task.
 
@@ -23,7 +23,7 @@ It does not detect conversational intent, scan for repositories, edit global `.c
 Confirm that the portable executable and its packaged schemas are available:
 
 ```powershell
-goal-lifecycle doctor --json
+agentgoals doctor --json
 ```
 
 Normal use requires only an absolute target repository path. It does not require
@@ -32,7 +32,7 @@ the user or LLM to know where the toolkit source checkout lives.
 Dry-run, which performs no writes:
 
 ```powershell
-goal-lifecycle onboard `
+agentgoals onboard `
   --repo C:\devhome\legacy-repo `
   --json
 ```
@@ -40,7 +40,7 @@ goal-lifecycle onboard `
 Apply repo-local onboarding:
 
 ```powershell
-goal-lifecycle onboard `
+agentgoals onboard `
   --repo C:\devhome\legacy-repo `
   --apply `
   --json
@@ -49,7 +49,7 @@ goal-lifecycle onboard `
 Verify an already-registered repository in a derived global aggregate:
 
 ```powershell
-goal-lifecycle onboard `
+agentgoals onboard `
   --repo C:\devhome\legacy-repo `
   --apply `
   --global-registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json `
@@ -73,10 +73,10 @@ The default layout is:
     goal-lifecycle/
       STATE.json
       STATE.md
-      ONBOARDING.json
-      global/
-        STATE.json
-        STATE.md
+    ONBOARDING.json
+    global/
+      STATE.json
+      STATE.md
 ```
 
 The command does not create a Goal Contract. It preserves pre-existing Goal source files and records their before/after SHA-256 hashes. A valid partial repo registry is extended without replacing other roots. Invalid, duplicate, escaping, or colliding paths fail closed.
@@ -109,7 +109,7 @@ requirement for users or LLMs:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m goal_lifecycle onboard `
+.\.venv\Scripts\python -m agentgoals onboard `
   --repo C:\devhome\legacy-repo `
   --json
 ```
@@ -119,8 +119,8 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 Deferred rollback is deliberately non-destructive. A report stored in the target repository can be edited, so its hashes and `created` flags cannot prove that a canonical registry or STATE file was actually created by that run. The rollback command therefore validates and classifies candidates but never deletes files or directories.
 
 ```powershell
-goal-lifecycle onboard `
-  --rollback-report C:\devhome\legacy-repo\outputs\goal-lifecycle\ONBOARDING.json `
+agentgoals onboard `
+  --rollback-report C:\devhome\legacy-repo\outputs\ONBOARDING.json `
   --json
 ```
 

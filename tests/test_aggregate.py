@@ -1,10 +1,10 @@
-import json
+﻿import json
 from pathlib import Path
 
 import pytest
 
-from goal_lifecycle.aggregate import aggregate, load_global_registry
-from goal_lifecycle.reconcile import reconcile
+from agentgoals.aggregate import aggregate, load_global_registry
+from agentgoals.reconcile import reconcile
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 
 

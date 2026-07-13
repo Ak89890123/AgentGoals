@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.goal-lifecycle/schemas/onboarding-result.schema.json",
-  "title": "Goal Lifecycle Onboarding Result",
+  "$id": "https://local.agentgoals/schemas/onboarding-result.schema.json",
+  "title": "AgentGoals Onboarding Result",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -149,6 +149,8 @@
           "additionalProperties": false,
           "required": [
             "version",
+            "generated_at",
+            "state_sha256",
             "source",
             "visibility_verified",
             "focus_root_id",
@@ -160,6 +162,8 @@
           ],
           "properties": {
             "version": { "const": 1 },
+            "generated_at": { "type": "string", "format": "date-time" },
+            "state_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
             "source": { "enum": ["local", "global"] },
             "visibility_verified": { "type": "boolean" },
             "focus_root_id": { "type": ["string", "null"] },

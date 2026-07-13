@@ -62,9 +62,9 @@
   "onboarding_resume_regression": {
     "source_context_bytes": 618,
     "source_sha256": "84b1cb74bbda64d3a71934cdc9f005105863911a4cd9b246cf99155af423e7e3",
-    "resume_context_bytes": 229,
-    "resume_sha256": "161f7f105f7d25727f6f5b60b892f215cffc8c8c9471288f0aa44f808a150705",
-    "maximum_ratio": 0.5,
+    "maximum_resume_context_bytes": 400,
+    "state_fingerprint": "sha256",
+    "maximum_ratio": 0.65,
     "semantic_model_calls": 0,
     "pipeline_invocations": 1
   },

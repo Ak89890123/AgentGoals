@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -7,8 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from goal_lifecycle.onboard import onboard_repository
-from goal_lifecycle.session_handoff import assess_session_handoff, gate_for_status, main
+from agentgoals.onboard import onboard_repository
+from agentgoals.session_handoff import (
+    assess_session_handoff,
+    gate_for_status,
+    main,
+    select_session_handoff,
+)
 from tests.test_aggregate import global_root, write_global_registry
 from tests.test_onboard import make_repo
 from tests.test_reconcile import write_goal
@@ -32,8 +37,8 @@ def registered_report(name: str, status: str = "draft") -> tuple[Path, Path]:
     write_global_registry(global_registry, [global_root(repo, "registered-repo", state_path)])
     result = onboard_repository(repo, apply=True, global_registry_path=global_registry)
     assert result.registered is True
-    report_path = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
-    global_state = repo / "outputs" / "goal-lifecycle" / "global" / "STATE.json"
+    report_path = repo / "outputs" / "ONBOARDING.json"
+    global_state = repo / "outputs" / "global" / "STATE.json"
     return report_path, global_state
 
 
@@ -48,9 +53,9 @@ def test_fast_path_returns_authoritative_focus_and_gate() -> None:
         "goal_key": "registered-repo/focus-goal",
         "status": "in_progress",
         "gate": "continue_before_review_gate",
-        "contract_path": str((report.parents[2] / "goals" / "active" / "focus-goal" / "CONTRACT.md").resolve()),
-        "plan_path": str((report.parents[2] / "goals" / "active" / "focus-goal" / "PLAN.md").resolve()),
-        "evidence_path": str((report.parents[2] / "goals" / "active" / "focus-goal" / "EVIDENCE.md").resolve()),
+        "contract_path": str((report.parents[1] / "goals" / "active" / "focus-goal" / "CONTRACT.md").resolve()),
+        "plan_path": str((report.parents[1] / "goals" / "active" / "focus-goal" / "PLAN.md").resolve()),
+        "evidence_path": str((report.parents[1] / "goals" / "active" / "focus-goal" / "EVIDENCE.md").resolve()),
         "evidence_status": "partial",
         "review_required": True,
         "review_verdict": "pending",
@@ -85,20 +90,39 @@ def test_missing_malformed_stale_and_unregistered_reports_fall_back() -> None:
     assert malformed["fallback_reason"] == CASES["fallback_cases"]["malformed"]
 
     report, state = registered_report("handoff-stale")
-    old = (datetime.now(timezone.utc) - timedelta(hours=25)).timestamp()
-    os.utime(report, (old, old))
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    payload["resume"]["generated_at"] = (
+        datetime.now(timezone.utc) - timedelta(hours=25)
+    ).isoformat()
+    report.write_text(json.dumps(payload), encoding="utf-8")
     stale = assess_session_handoff(report, state, max_age=timedelta(hours=24))
     assert stale["fallback_reason"] == CASES["fallback_cases"]["stale"]
 
     repo = make_repo("handoff-unregistered")
     result = onboard_repository(repo, apply=True)
-    unregistered_report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    unregistered_report = repo / "outputs" / "ONBOARDING.json"
     assert result.registered is False
     unregistered = assess_session_handoff(
         unregistered_report,
         repo / "outputs" / "goal-lifecycle" / "STATE.json",
     )
     assert unregistered["fallback_reason"] == CASES["fallback_cases"]["unregistered"]
+
+
+def test_freshness_uses_report_metadata_and_state_fingerprint_not_mtime() -> None:
+    # Given: a current report whose filesystem timestamp is old.
+    report, state = registered_report("handoff-content-freshness")
+    old = (datetime.now(timezone.utc) - timedelta(days=10)).timestamp()
+    os.utime(report, (old, old))
+
+    # When: the report is assessed against its matching State.
+    current = assess_session_handoff(report, state)
+    state.write_text(state.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    mismatched = assess_session_handoff(report, state)
+
+    # Then: metadata remains current while changed State content is rejected.
+    assert current["mode"] == "fast_path"
+    assert mismatched["fallback_reason"] == "state_fingerprint_mismatch"
 
 
 def test_queue_contradiction_and_invalid_queue_fall_back() -> None:
@@ -166,7 +190,7 @@ def test_visibility_and_outcome_contradictions_fall_back_before_schema_trust() -
     report, state = registered_report("handoff-path-escape")
     payload = json.loads(state.read_text(encoding="utf-8"))
     focus = next(item for item in payload["entries"] if item["goal_key"] == "registered-repo/focus-goal")
-    focus["contract_path"] = str((report.parents[2].parent / "other-repo" / "CONTRACT.md").resolve())
+    focus["contract_path"] = str((report.parents[1].parent / "other-repo" / "CONTRACT.md").resolve())
     state.write_text(json.dumps(payload), encoding="utf-8")
     assert assess_session_handoff(report, state)["fallback_reason"] == CASES["fallback_cases"]["identity_mismatch"]
 
@@ -180,8 +204,8 @@ def test_empty_queue_is_a_valid_fast_path_without_focus() -> None:
     onboard_repository(repo, apply=True, global_registry_path=global_registry)
 
     result = assess_session_handoff(
-        repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json",
-        repo / "outputs" / "goal-lifecycle" / "global" / "STATE.json",
+        repo / "outputs" / "ONBOARDING.json",
+        repo / "outputs" / "global" / "STATE.json",
     )
 
     assert result["mode"] == "fast_path"
@@ -191,11 +215,154 @@ def test_empty_queue_is_a_valid_fast_path_without_focus() -> None:
 
 def test_cli_returns_zero_for_fast_path_and_two_for_fallback(capsys) -> None:
     report, state = registered_report("handoff-cli")
+    repo = report.parents[1]
 
-    assert main(["--report", str(report), "--state", str(state)]) == 0
+    assert main(["--repo", str(repo), "--report", str(report), "--state", str(state)]) == 0
     fast = json.loads(capsys.readouterr().out)
     assert fast["mode"] == "fast_path"
 
-    assert main(["--report", "missing.json", "--state", str(state)]) == 2
+    missing = repo / "missing.json"
+    assert main(["--repo", str(repo), "--report", str(missing), "--state", str(state)]) == 0
     fallback_payload = json.loads(capsys.readouterr().out)
-    assert fallback_payload["fallback_reason"] == "report_missing"
+    assert fallback_payload["mode"] == "fast_path"
+    assert fallback_payload["attempts"][0]["fallback_reason"] == "report_missing"
+
+
+def test_cli_selects_repo_local_canonical_pair_without_explicit_paths(capsys) -> None:
+    # Given: a repository with one valid allowlisted canonical pair.
+    report, _ = registered_report("handoff-cli-canonical")
+    repo = report.parents[1]
+
+    # When: the CLI receives only the repository boundary.
+    exit_code = main(["--repo", str(repo)])
+    payload = json.loads(capsys.readouterr().out)
+
+    # Then: selection succeeds without report guessing or path prompting.
+    assert exit_code == 0
+    assert payload["selected_report"] == str(report.resolve())
+
+
+def test_selector_uses_compatible_canonical_pair_after_explicit_legacy_report() -> None:
+    # Given: a valid canonical pair and an explicitly supplied legacy report.
+    report, state = registered_report("handoff-candidate-selection")
+    repo = report.parents[1]
+    compatibility_report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    compatibility_state = repo / "outputs" / "goal-lifecycle" / "global" / "STATE.json"
+    compatibility_report.parent.mkdir(parents=True, exist_ok=True)
+    compatibility_state.parent.mkdir(parents=True, exist_ok=True)
+    compatibility_report.write_bytes(report.read_bytes())
+    compatibility_state.write_bytes(state.read_bytes())
+    legacy = repo / "outputs" / "ONBOARDING.json"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(json.dumps({"resume": {"version": 0}}), encoding="utf-8")
+
+    # When: deterministic selection assesses the explicit candidate first.
+    result = select_session_handoff(repo, report_path=legacy, state_path=state)
+
+    # Then: the supported allowlisted canonical pair is selected.
+    assert result["mode"] == "fast_path"
+    assert result["selected_report"] == str(compatibility_report.resolve())
+    assert result["attempts"][0]["fallback_reason"] == "resume_unsupported"
+
+
+def test_selector_returns_one_truthful_reason_when_no_candidate_is_valid() -> None:
+    # Given: a repository with no onboarding report or aggregate State.
+    repo = make_repo("handoff-no-valid-candidate")
+
+    # When: deterministic selection checks only allowlisted paths.
+    result = select_session_handoff(repo)
+
+    # Then: one stable fallback reason summarizes the failed selection.
+    assert result["mode"] == "fallback"
+    assert result["fallback_reason"] == "no_valid_candidate"
+    assert len(result["attempts"]) == 2
+
+
+def test_selector_rejects_explicit_candidate_from_another_repository() -> None:
+    # Given: an explicit valid pair owned by a different repository.
+    foreign_report, foreign_state = registered_report("handoff-foreign")
+    repo = make_repo("handoff-expected-repo")
+
+    # When: selection is bounded to the expected repository.
+    result = select_session_handoff(
+        repo,
+        report_path=foreign_report,
+        state_path=foreign_state,
+    )
+
+    # Then: the foreign pair is rejected before it can become the fast path.
+    assert result["mode"] == "fallback"
+    assert result["attempts"][0]["fallback_reason"] == "identity_mismatch"
+
+
+def test_selector_chooses_newest_compatible_allowlisted_pair() -> None:
+    # Given: both allowlisted pairs are valid with different generation metadata.
+    canonical_report, canonical_state = registered_report("handoff-newest")
+    repo = canonical_report.parents[1]
+    compatibility_report = repo / "outputs" / "goal-lifecycle" / "ONBOARDING.json"
+    compatibility_state = repo / "outputs" / "goal-lifecycle" / "global" / "STATE.json"
+    compatibility_report.parent.mkdir(parents=True, exist_ok=True)
+    compatibility_state.parent.mkdir(parents=True, exist_ok=True)
+    compatibility_report.write_bytes(canonical_report.read_bytes())
+    compatibility_state.write_bytes(canonical_state.read_bytes())
+    payload = json.loads(canonical_report.read_text(encoding="utf-8"))
+    payload["resume"]["generated_at"] = (
+        datetime.now(timezone.utc) - timedelta(hours=1)
+    ).isoformat()
+    canonical_report.write_text(json.dumps(payload), encoding="utf-8")
+
+    # When: repository-local candidates are selected without explicit paths.
+    result = select_session_handoff(repo)
+
+    # Then: validated generation metadata selects the newer compatibility pair.
+    assert result["mode"] == "fast_path"
+    assert result["selected_report"] == str(compatibility_report.resolve())
+
+
+def test_future_generated_report_is_rejected() -> None:
+    # Given: a report claiming a generation time in the future.
+    report, state = registered_report("handoff-future")
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    payload["resume"]["generated_at"] = (
+        datetime.now(timezone.utc) + timedelta(minutes=5)
+    ).isoformat()
+    report.write_text(json.dumps(payload), encoding="utf-8")
+
+    # When: the candidate is assessed.
+    result = assess_session_handoff(report, state)
+
+    # Then: it cannot extend its own freshness window.
+    assert result["fallback_reason"] == "report_from_future"
+
+
+def test_canonical_symlink_escape_is_rejected_before_external_report_read() -> None:
+    # Given: an allowlisted canonical filename that resolves to malformed data outside the repo.
+    repo = make_repo("handoff-symlink-escape")
+    external = repo.parent / f"{repo.name}-external.json"
+    external.write_text("not json", encoding="utf-8")
+    report = repo / "outputs" / "ONBOARDING.json"
+    report.parent.mkdir(parents=True)
+    try:
+        report.symlink_to(external)
+    except OSError as exc:
+        pytest.skip(f"symbolic links unavailable: {exc}")
+
+    # When: repository-bounded selection resolves the allowlisted candidate.
+    result = select_session_handoff(repo)
+
+    # Then: containment wins before malformed external bytes are parsed.
+    assert result["attempts"][0]["fallback_reason"] == "identity_mismatch"
+
+
+def test_external_malformed_explicit_report_is_rejected_before_parsing() -> None:
+    # Given: malformed report bytes outside the requested repository.
+    repo = make_repo("handoff-external-malformed")
+    external = repo.parent / f"{repo.name}-malformed.json"
+    external.write_text("not json", encoding="utf-8")
+    state = repo / "outputs" / "global" / "STATE.json"
+
+    # When: the external path is supplied explicitly.
+    result = select_session_handoff(repo, report_path=external, state_path=state)
+
+    # Then: repository containment rejects it before JSON parsing.
+    assert result["attempts"][0]["fallback_reason"] == "identity_mismatch"

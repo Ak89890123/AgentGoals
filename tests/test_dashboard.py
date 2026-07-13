@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -12,7 +12,7 @@ from typing import Iterator
 
 import pytest
 
-from goal_lifecycle.dashboard import (
+from agentgoals.dashboard import (
     DashboardError,
     DashboardFilters,
     DashboardSession,
@@ -22,7 +22,7 @@ from goal_lifecycle.dashboard import (
     load_dashboard,
     resolve_entry_path,
 )
-from goal_lifecycle.dashboard_app import (
+from agentgoals.dashboard_app import (
     DashboardApplication,
     build_parser,
     build_smoke_result,
@@ -33,7 +33,7 @@ from goal_lifecycle.dashboard_app import (
     status_tone,
     translate,
 )
-from goal_lifecycle.validate import resolve_schema_dir
+from agentgoals.validate import resolve_schema_dir
 
 
 @contextmanager
@@ -346,15 +346,15 @@ def test_dashboard_translations_cover_traditional_chinese_and_fallback_to_englis
 
 
 def test_dashboard_icon_assets_are_available_from_the_source_tree() -> None:
-    assert dashboard_asset_path("goal-control-target.ico").is_file()
-    assert dashboard_asset_path("goal-control-target.png").is_file()
+    assert dashboard_asset_path("agentgoals-target.ico").is_file()
+    assert dashboard_asset_path("agentgoals-target.png").is_file()
 
 
 def test_packaged_app_discovers_repo_state_from_executable_ancestors() -> None:
     with dashboard_test_dir() as temp_dir:
         repo = temp_dir / "repo"
         state = repo / "outputs" / "global" / "STATE.json"
-        executable = repo / "dist" / "GoalControl.exe"
+        executable = repo / "dist" / "AgentGoals.exe"
         state.parent.mkdir(parents=True)
         state.write_text("{}", encoding="utf-8")
         executable.parent.mkdir(parents=True)
@@ -432,7 +432,7 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             repo_row = app.tree.get_children()[0]
             assert repo_row == "repo::repo-a"
             assert app.tree.get_children(repo_row) == ("repo-a/demo",)
-            assert app.root.title() == "目標控制台 — 本機儀表板"
+            assert app.root.title() == "AgentGoals — 本機儀表板"
             assert hasattr(app, "window_icon")
             assert app.tree.heading("status")["text"] == "狀態"
             app._manual_column_widths["title"] = 412
@@ -443,7 +443,7 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             assert "title" in app._manual_column_widths
             app.language_var.set("English")
             app._change_language()
-            assert app.root.title() == "Goal Control — Local Dashboard"
+            assert app.root.title() == "AgentGoals — Local Dashboard"
             assert app.tree.heading("status")["text"] == "STATUS"
         finally:
             root.destroy()

@@ -1,7 +1,7 @@
-import json
+﻿import json
 
-from goal_lifecycle.queue import main, query_registry, query_state
-from goal_lifecycle.reconcile import reconcile
+from agentgoals.queue import main, query_registry, query_state
+from agentgoals.reconcile import reconcile
 from tests.test_aggregate import global_root, write_global_registry
 from tests.test_reconcile import make_workspace, write_goal, write_registry
 

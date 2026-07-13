@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
-from goal_lifecycle.session_eval import apply_patch_in_memory, contract_frontmatter, evaluate_instruction_preservation, materialize_patch_target, proposed_additions, utf8_stats, verify_patch_contexts
+from agentgoals.session_eval import apply_patch_in_memory, contract_frontmatter, evaluate_instruction_preservation, materialize_patch_target, proposed_additions, utf8_stats, verify_patch_contexts
 from tests.test_reconcile import make_workspace
 
 
@@ -114,11 +115,37 @@ def test_patch_verification_rejects_frontmatter_changes() -> None:
 
 
 def test_versioned_skill_instruction_preservation_cases_pass_against_exact_proposal() -> None:
+    # Given: immutable pre-install Skill backups and the exact reviewed patch.
+    root = make_workspace("session-eval-versioned-proposal")
+    patch_source = Path("goals/completed/goal-session-handoff-integration/patches/END-aab-jixu.apply_patch")
+    fixture_source = Path("fixtures/session_handoff/skill-behavior-cases.json")
+    replacements = {
+        r"C:\Users\jimmy0302\.codex\skills\aab-jixu\SKILL.md": str(
+            Path("goals/completed/goal-session-handoff-integration/backups/2026-07-11-beb39c40/aab-jixu.SKILL.md").resolve()
+        ),
+        r"C:\Users\jimmy0302\.codex\skills\aaa-shougong\SKILL.md": str(
+            Path("goals/completed/goal-session-handoff-integration/backups/2026-07-11-beb39c40/aaa-shougong.SKILL.md").resolve()
+        ),
+    }
+    patch_text = patch_source.read_text(encoding="utf-8")
+    fixture = json.loads(fixture_source.read_text(encoding="utf-8"))
+    for installed_path, backup_path in replacements.items():
+        patch_text = patch_text.replace(installed_path, backup_path)
+        for case in fixture["cases"]:
+            if case["skill_target"] == installed_path:
+                case["skill_target"] = backup_path
+    patch_path = root / "proposal.patch"
+    cases_path = root / "cases.json"
+    patch_path.write_text(patch_text, encoding="utf-8")
+    cases_path.write_text(json.dumps(fixture), encoding="utf-8")
+
+    # When: instruction preservation is evaluated without reading mutable global Skills.
     result = evaluate_instruction_preservation(
-        Path("goals/completed/goal-session-handoff-integration/patches/END-aab-jixu.apply_patch"),
-        Path("fixtures/session_handoff/skill-behavior-cases.json"),
+        patch_path,
+        cases_path,
     )
 
+    # Then: the immutable proposal still satisfies every versioned behavior case.
     assert result["version"] == 1
     assert result["case_count"] == 6
     assert result["passed"] is True

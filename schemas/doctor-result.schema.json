@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.goal-lifecycle/schemas/doctor-result.schema.json",
-  "title": "Goal Lifecycle Doctor Result",
+  "$id": "https://local.agentgoals/schemas/doctor-result.schema.json",
+  "title": "AgentGoals Doctor Result",
   "type": "object",
   "additionalProperties": false,
   "required": [

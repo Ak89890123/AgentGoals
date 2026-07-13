@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from goal_lifecycle.doctor import build_doctor_result, main, redact_origin
+from agentgoals.doctor import build_doctor_result, main, redact_origin
 
 
 def load_schema() -> dict:
@@ -32,7 +32,7 @@ def test_ready_doctor_result_is_schema_valid() -> None:
 def test_unsupported_python_returns_one_structured_remediation() -> None:
     payload, exit_code = build_doctor_result(
         route="module",
-        origin=Path("C:/tool/goal_lifecycle/__init__.py"),
+        origin=Path("C:/tool/agentgoals/__init__.py"),
         python_version=(3, 10, 14),
         toolkit_version="0.1.0",
         schemas_available=True,

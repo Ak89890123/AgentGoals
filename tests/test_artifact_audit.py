@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import hashlib
@@ -10,8 +10,8 @@ from unittest.mock import ANY
 
 import pytest
 
-from goal_lifecycle import artifact_audit, artifact_tool
-from goal_lifecycle.artifact_audit import (
+from agentgoals import artifact_audit, artifact_tool
+from agentgoals.artifact_audit import (
     AuditStoreError,
     audit_database_path,
     begin_audit_receipt,
@@ -21,7 +21,7 @@ from goal_lifecycle.artifact_audit import (
     list_audit_receipts,
     normalize_time_boundary,
 )
-from goal_lifecycle.artifact_tool import ArtifactFile, ArtifactResult, ArtifactToolError, execute_artifact_tool
+from agentgoals.artifact_tool import ArtifactFile, ArtifactResult, ArtifactToolError, execute_artifact_tool
 from tests.test_reconcile import make_workspace
 
 

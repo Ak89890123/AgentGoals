@@ -1,5 +1,3 @@
-from goal_lifecycle.cli import main
+from agentgoals.cli import main
 
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+raise SystemExit(main())
