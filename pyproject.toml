@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentgoals"
-version = "0.2.0"
+version = "0.2.1"
 description = "Portable goal lifecycle management for AI coding agents."
 readme = "PACKAGE_README.md"
 requires-python = ">=3.11"

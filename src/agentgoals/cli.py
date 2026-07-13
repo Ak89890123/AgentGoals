@@ -5,7 +5,7 @@ import sys
 from collections.abc import Sequence
 
 from agentgoals import __version__
-from agentgoals import doctor, onboard
+from agentgoals import complete, doctor, onboard, refresh
 
 LAUNCHER_SCHEMA_VERSION = 1
 
@@ -16,6 +16,8 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("onboard", add_help=False, help="Safely onboard one explicit repository.")
     commands.add_parser("doctor", add_help=False, help="Diagnose toolkit availability and compatibility.")
+    commands.add_parser("refresh", add_help=False, help="Rebuild repository and global STATE deterministically.")
+    commands.add_parser("complete", add_help=False, help="Complete one goal and refresh STATE transactionally.")
     return parser
 
 
@@ -34,6 +36,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return onboard.main(arguments[1:])
     if arguments[0] == "doctor":
         return doctor.main(arguments[1:])
+    if arguments[0] == "refresh":
+        return refresh.main(arguments[1:])
+    if arguments[0] == "complete":
+        return complete.main(arguments[1:])
     try:
         build_parser().parse_args(arguments)
     except SystemExit as exc:

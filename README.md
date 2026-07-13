@@ -193,6 +193,16 @@ The command runs four deterministic stages: `reconcile`, `validate_local`, `aggr
 
 Use `--json` for a versioned compact summary containing stage status, output paths, entry counts, issue counts, and failure or skip details.
 
+Installed lifecycle Skills use the equivalent bounded post-mutation command:
+
+```powershell
+agentgoals refresh --repo <absolute-repository> --global-registry <absolute-global-registry> --json
+```
+
+Authorized completion is a deterministic software transaction: `agentgoals complete --repo <absolute-repository> --goal-id <goal-id> --global-registry <absolute-global-registry> --json` validates completion fields, moves the Goal from `active` to `completed`, and invokes refresh exactly once. It does not use LLM semantic classification.
+
+This command derives the repo registry and output paths, requires global aggregation, and never classifies prose. A successful authoritative Goal-file write or authorized `goals/active/` to `goals/completed/` move is the mechanical trigger; previews, dry-runs, and read-only assessments are not.
+
 The orchestrator rejects `--out` and configured global output paths under the user's global `.codex` directory.
 
 ## Session Handoff

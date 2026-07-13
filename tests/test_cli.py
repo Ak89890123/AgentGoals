@@ -7,7 +7,7 @@ def test_root_cli_reports_stable_version(capsys) -> None:
     exit_code = cli_module.main(["--version"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.strip() == "agentgoals 0.2.0"
+    assert capsys.readouterr().out.strip() == "agentgoals 0.2.1"
 
 
 def test_root_cli_delegates_onboard_without_rewriting_arguments(monkeypatch) -> None:
@@ -38,9 +38,32 @@ def test_root_cli_delegates_doctor(monkeypatch) -> None:
     assert observed == ["--json"]
 
 
+def test_root_cli_delegates_refresh_without_semantic_routing(monkeypatch) -> None:
+    observed: list[str] = []
+
+    monkeypatch.setattr(cli_module.refresh, "main", lambda argv: observed.extend(argv) or 0)
+
+    exit_code = cli_module.main(
+        ["refresh", "--repo", "C:/repo", "--global-registry", "C:/config/REGISTRY.json", "--json"]
+    )
+
+    assert exit_code == 0
+    assert observed == ["--repo", "C:/repo", "--global-registry", "C:/config/REGISTRY.json", "--json"]
+
+
+def test_root_cli_delegates_complete_without_semantic_routing(monkeypatch) -> None:
+    observed: list[str] = []
+    monkeypatch.setattr(cli_module.complete, "main", lambda argv: observed.extend(argv) or 0)
+    assert cli_module.main(["complete", "--repo", "C:/repo", "--goal-id", "done-goal"]) == 0
+    assert observed == ["--repo", "C:/repo", "--goal-id", "done-goal"]
+
+
 def test_root_cli_without_command_prints_help(capsys) -> None:
     assert cli_module.main([]) == 0
-    assert "onboard" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "onboard" in output
+    assert "refresh" in output
+    assert "complete" in output
 
 
 def test_launcher_compatibility_handshake_delegates_in_one_process(monkeypatch) -> None:
