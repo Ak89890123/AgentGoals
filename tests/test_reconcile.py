@@ -7,7 +7,7 @@ from agentgoals.reconcile import reconcile
 def make_workspace(name: str) -> Path:
     root = Path(".tmp") / "tests" / f"{name}-{uuid4().hex}"
     root.mkdir(parents=True)
-    return root
+    return root.resolve()
 
 
 def write_goal(

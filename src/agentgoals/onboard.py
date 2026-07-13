@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,9 +13,23 @@ from typing import Any, Sequence
 
 from jsonschema import Draft202012Validator
 
-from agentgoals.aggregate import GlobalRegistryRoot, load_global_registry
-from agentgoals.io import atomic_write_text
-from agentgoals.run import RunSummary, run_pipeline
+from agentgoals.aggregate import GLOBAL_REGISTRY_SCHEMA, GlobalRegistryRoot, aggregate, load_global_registry, validate_instance
+from agentgoals.io import (
+    ConcurrentMutationError,
+    atomic_replace_bytes_if_hash,
+    atomic_write_text,
+    guarded_lock_path,
+)
+from agentgoals.run import (
+    RunSummary,
+    StageResult,
+    failed_result,
+    passed_validation_result,
+    result_for_entries,
+    run_pipeline,
+    skipped_result,
+    verify_global_refresh,
+)
 from agentgoals.validate import SCHEMA_DIR, load_json, validate_json_file, validate_registry, validate_state
 
 
@@ -39,6 +55,8 @@ class OnboardingResult:
     directories: list[dict[str, str]]
     preserved_files: list[dict[str, str]]
     message: str | None
+    registration: dict[str, Any]
+    recovery: dict[str, Any] | None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -65,12 +83,30 @@ class Preflight:
     planned_actions: list[str]
     global_root: GlobalRegistryRoot | None
     proposal: dict[str, Any] | None
+    global_registry_path: Path | None
+    global_registry_before_hash: str | None
+
+
+@dataclass(frozen=True)
+class GlobalPublication:
+    path: Path
+    before_bytes: bytes
+    before_sha256: str
+    after_sha256: str
+
+
+class PostCommitPublicationError(RuntimeError):
+    def __init__(self, message: str, publication: GlobalPublication) -> None:
+        super().__init__(message)
+        self.publication = publication
 
 
 def onboard_repository(
     repo_path: Path,
     *,
     apply: bool = False,
+    register: bool = False,
+    registration_plan_sha256: str | None = None,
     root_id: str | None = None,
     label: str | None = None,
     project: str | None = None,
@@ -85,6 +121,8 @@ def onboard_repository(
         return _onboard_repository(
             repo_path,
             apply=apply,
+            register=register,
+            registration_plan_sha256=registration_plan_sha256,
             root_id=root_id,
             label=label,
             project=project,
@@ -98,13 +136,23 @@ def onboard_repository(
     except Exception as exc:
         resolved_repo = repo_path.resolve()
         resolved_root_id = root_id or slugify(resolved_repo.name)
-        return unexpected_result(resolved_repo, resolved_root_id, "apply" if apply else "check", exc)
+        return unexpected_result(
+            resolved_repo,
+            resolved_root_id,
+            "apply" if apply else "check",
+            exc,
+            register=register,
+            registration_plan_sha256=registration_plan_sha256,
+            global_registry_path=global_registry_path,
+        )
 
 
 def _onboard_repository(
     repo_path: Path,
     *,
     apply: bool = False,
+    register: bool = False,
+    registration_plan_sha256: str | None = None,
     root_id: str | None = None,
     label: str | None = None,
     project: str | None = None,
@@ -116,8 +164,59 @@ def _onboard_repository(
     report: Path = Path("outputs/ONBOARDING.json"),
 ) -> OnboardingResult:
     mode = "apply" if apply else "check"
+    if not repo_path.is_absolute():
+        relative_root_id = root_id or slugify(repo_path.name)
+        return conflict_result(
+            repo_path,
+            relative_root_id,
+            mode,
+            ValueError("--repo must be an absolute repository path."),
+        )
     resolved_repo = repo_path.resolve()
     resolved_root_id = root_id or slugify(resolved_repo.name)
+
+    if register and not apply:
+        return conflict_result(
+            resolved_repo,
+            resolved_root_id,
+            mode,
+            ValueError("--register requires --apply and an absolute --global-registry."),
+            registration=registration_info(
+                requested=True,
+                authorized=False,
+                global_registry_path=global_registry_path,
+                status="rejected",
+            ),
+        )
+    if register and (global_registry_path is None or not global_registry_path.is_absolute()):
+        return conflict_result(
+            resolved_repo,
+            resolved_root_id,
+            mode,
+            ValueError("--register requires --apply and an absolute global registry path (--global-registry)."),
+            registration=registration_info(
+                requested=True,
+                authorized=False,
+                global_registry_path=global_registry_path,
+                status="rejected",
+            ),
+        )
+    if register and (
+        registration_plan_sha256 is None
+        or not re.fullmatch(r"[a-f0-9]{64}", registration_plan_sha256)
+    ):
+        return conflict_result(
+            resolved_repo,
+            resolved_root_id,
+            mode,
+            ValueError("--register requires the exact registration plan SHA-256 from the dry-run."),
+            registration=registration_info(
+                requested=True,
+                authorized=False,
+                global_registry_path=global_registry_path,
+                status="rejected",
+            ),
+        )
 
     try:
         preflight = build_preflight(
@@ -134,7 +233,35 @@ def _onboard_repository(
             report,
         )
     except Exception as exc:
-        return conflict_result(resolved_repo, resolved_root_id, mode, exc)
+        return conflict_result(
+            resolved_repo,
+            resolved_root_id,
+            mode,
+            exc,
+            registration=registration_info(
+                requested=register,
+                authorized=False,
+                global_registry_path=global_registry_path,
+                status="rejected" if register else "not_requested",
+            ),
+        )
+
+    current_plan_sha256 = compute_registration_plan_sha256(preflight)
+    if register and registration_plan_sha256 != current_plan_sha256:
+        return conflict_result(
+            resolved_repo,
+            resolved_root_id,
+            mode,
+            ValueError(
+                "Registration plan SHA-256 does not match the current dry-run plan; rerun dry-run before applying."
+            ),
+            registration=registration_info_from_preflight(
+                preflight,
+                requested=True,
+                authorized=False,
+                status="rejected",
+            ),
+        )
 
     if not apply:
         dry_run_actions = list(preflight.planned_actions)
@@ -158,16 +285,26 @@ def _onboard_repository(
             directories=[],
             preserved_files=[],
             message="Dry-run completed without writes.",
+            registration=registration_info_from_preflight(preflight, requested=False, authorized=False, status="not_requested"),
+            recovery=None,
         )
 
     source_before = snapshot_goal_sources(preflight.paths.goal_root)
-    if global_registry_path and global_registry_path.resolve().is_file():
-        protected = global_registry_path.resolve()
+    global_before_bytes = b""
+    if preflight.global_registry_path and preflight.global_registry_path.is_file():
+        protected = preflight.global_registry_path
+        global_before_bytes = protected.read_bytes()
         source_before[protected] = hash_file(protected)
     artifact_before = snapshot_artifacts(preflight.paths)
     directory_before = snapshot_directories(preflight.paths)
     runtime_metrics = {"semantic_model_calls": 0, "pipeline_invocations": 0}
     stages = [stage("preflight", "passed")]
+    publication: GlobalPublication | None = None
+    recovery_info: dict[str, Any] | None = None
+    post_commit_recovery = False
+    candidate_path: Path | None = None
+    registered = preflight.global_root is not None
+    registration_status = "already_registered" if registered and register else "not_requested"
 
     try:
         apply_scaffold(preflight)
@@ -186,6 +323,9 @@ def _onboard_repository(
             directory_before,
             runtime_metrics,
             f"Scaffolding failed: {exc}",
+            register=register,
+            registered=False,
+            registration_status="not_published" if register else registration_status,
         )
 
     try:
@@ -193,7 +333,7 @@ def _onboard_repository(
         run_summary = run_pipeline(
             preflight.paths.registry,
             preflight.paths.local_out,
-            global_registry_path=global_registry_path if preflight.global_root else None,
+            global_registry_path=preflight.global_registry_path if preflight.global_root else None,
             global_out_dir=preflight.paths.global_out if preflight.global_root else None,
         )
     except Exception as exc:
@@ -210,11 +350,85 @@ def _onboard_repository(
             directory_before,
             runtime_metrics,
             f"Pipeline failed unexpectedly: {exc}",
+            register=register,
+            registered=False,
+            registration_status="not_published" if register else registration_status,
         )
     stages.extend(asdict(item) for item in run_summary.stages)
 
     visibility_verified = False
-    if preflight.global_root and not global_pipeline_failed(run_summary):
+    classification_summary = run_summary
+    if register and preflight.global_root is None and not local_pipeline_failed(run_summary):
+        try:
+            if preflight.global_registry_path is None or preflight.proposal is None:
+                raise ValueError("Authorized registration requires a global registry and a proposed entry.")
+            candidate_path = write_candidate_global_registry(preflight.global_registry_path, preflight.proposal)
+            candidate_root = load_candidate_root(candidate_path, preflight.paths.repo)
+            candidate_summary = run_candidate_global(preflight, candidate_path, run_summary.operation_id)
+            stages.extend(asdict(item) for item in candidate_summary.stages)
+            classification_summary = RunSummary(
+                version=1,
+                status=candidate_summary.status,
+                exit_code=candidate_summary.exit_code,
+                stages=[*run_summary.stages, *candidate_summary.stages],
+                operation_id=run_summary.operation_id,
+            )
+            if global_pipeline_failed(candidate_summary):
+                registration_status = "not_published"
+                stages.append(stage("visibility", "skipped", "candidate global pipeline failed"))
+            else:
+                visibility_verified, visibility_message = verify_visibility(preflight, candidate_root)
+                stages.append(
+                    stage(
+                        "visibility",
+                        "passed" if visibility_verified else "failed",
+                        visibility_message,
+                    )
+                )
+                if visibility_verified:
+                    publication = publish_global_registration(
+                        preflight.global_registry_path,
+                        candidate_path,
+                        global_before_bytes,
+                        preflight.global_registry_before_hash,
+                    )
+                    registered = True
+                    registration_status = "published"
+                else:
+                    registration_status = "not_published"
+        except PostCommitPublicationError as exc:
+            publication = exc.publication
+            recovery_info = guarded_restore_global(publication)
+            publication = None
+            registered = False
+            post_commit_recovery = True
+            registration_status = (
+                "recovery_required" if recovery_info["status"] == "recovery_required" else "restored"
+            )
+            visibility_verified = False
+            stages.append(stage("registration", "failed", f"{type(exc).__name__}: {exc}"))
+            classification_summary = RunSummary(
+                version=1,
+                status="failed",
+                exit_code=1,
+                stages=[*run_summary.stages, StageResult("registration", "failed", None, None, None, str(exc))],
+                operation_id=run_summary.operation_id,
+            )
+        except Exception as exc:
+            registration_status = "not_published"
+            stages.append(stage("registration", "failed", f"{type(exc).__name__}: {exc}"))
+            visibility_verified = False
+            classification_summary = RunSummary(
+                version=1,
+                status="failed",
+                exit_code=1,
+                stages=[*run_summary.stages, StageResult("registration", "failed", None, None, None, str(exc))],
+                operation_id=run_summary.operation_id,
+            )
+        finally:
+            if candidate_path and candidate_path.exists():
+                candidate_path.unlink()
+    elif preflight.global_root and not global_pipeline_failed(run_summary):
         try:
             visibility_verified, visibility_message = verify_visibility(preflight)
             stages.append(
@@ -230,20 +444,52 @@ def _onboard_repository(
         reason = "registration required" if preflight.global_root is None else "global pipeline failed"
         stages.append(stage("visibility", "skipped", reason))
 
-    outcome, exit_code, message = choose_outcome(
-        run_summary,
-        preflight.global_root is not None,
-        visibility_verified,
-    )
+    if register and preflight.global_root is None and not registered:
+        if post_commit_recovery and recovery_info and recovery_info["status"] == "recovery_required":
+            outcome, exit_code, message = "recovery_required", 1, "Global registry recovery is required after post-commit failure."
+        elif post_commit_recovery:
+            outcome, exit_code, message = "global_failed", 1, "Global registration was restored after a post-commit failure."
+        elif any(
+            item["name"] in {"registration", "aggregate", "validate_global"}
+            and item["status"] == "failed"
+            for item in stages
+        ):
+            outcome, exit_code, message = "global_failed", 1, "Candidate global registration failed before publication."
+        elif any(item["name"] == "visibility" and item["status"] == "failed" for item in stages):
+            outcome, exit_code, message = "global_failed", 1, "Candidate global visibility verification failed before publication."
+        else:
+            outcome, exit_code, message = choose_outcome(classification_summary, False, visibility_verified)
+    else:
+        outcome, exit_code, message = choose_outcome(
+            classification_summary,
+            registered,
+            visibility_verified,
+        )
     try:
         resume = build_resume(preflight.paths, visibility_verified)
     except Exception as exc:
         stages.append(stage("resume", "failed", f"{type(exc).__name__}: {exc}"))
-        outcome = "global_failed" if preflight.global_root else "local_failed"
-        exit_code = 1
-        visibility_verified = False
-        resume = {}
-        message = f"Resume context generation failed: {exc}"
+        if publication:
+            recovery_info = guarded_restore_global(publication)
+            publication = None
+            registered = False
+            visibility_verified = False
+            resume = {}
+            if recovery_info["status"] == "recovery_required":
+                outcome = "recovery_required"
+                registration_status = "recovery_required"
+                message = f"Resume context generation failed: {exc}; global registry recovery is required."
+            else:
+                outcome = "local_failed"
+                registration_status = "restored"
+                message = f"Resume context generation failed: {exc}; global registry was restored safely."
+            exit_code = 1
+        else:
+            outcome = "global_failed" if preflight.global_root else "local_failed"
+            exit_code = 1
+            visibility_verified = False
+            resume = {}
+            message = f"Resume context generation failed: {exc}"
     return finish_apply(
         preflight,
         stages,
@@ -256,6 +502,11 @@ def _onboard_repository(
         directory_before,
         runtime_metrics,
         message,
+        register=register,
+        registered=registered,
+        registration_status=registration_status,
+        publication=publication,
+        recovery=recovery_info,
     )
 
 
@@ -308,6 +559,7 @@ def build_preflight(
         effective_project,
         global_registry_path,
     )
+    resolved_global_registry = global_registry_path.resolve() if global_registry_path else None
     return Preflight(
         paths=paths,
         root_id=effective_root_id,
@@ -318,6 +570,8 @@ def build_preflight(
         planned_actions=planned_actions,
         global_root=global_root,
         proposal=proposal,
+        global_registry_path=resolved_global_registry,
+        global_registry_before_hash=(hash_file(resolved_global_registry) if resolved_global_registry else None),
     )
 
 
@@ -420,12 +674,172 @@ def apply_scaffold(preflight: Preflight) -> None:
         atomic_write_json(preflight.paths.registry, preflight.registry_payload)
 
 
-def verify_visibility(preflight: Preflight) -> tuple[bool, str]:
-    assert preflight.global_root is not None
+def local_pipeline_failed(summary: RunSummary) -> bool:
+    return any(
+        item.status == "failed"
+        for item in summary.stages
+        if item.name in {"reconcile", "validate_local"}
+    )
+
+
+def write_candidate_global_registry(path: Path, proposal: dict[str, Any]) -> Path:
+    payload = load_json(path)
+    load_global_registry(path)
+    roots = list(payload.get("roots", []))
+    if any(item.get("id") == proposal["id"] for item in roots):
+        raise ValueError(f"Global registry id collision for {proposal['id']}")
+    if any(Path(item["repo_root"]).resolve() == Path(proposal["repo_root"]).resolve() for item in roots):
+        raise ValueError("Global registry contains a concurrent target repository registration")
+    payload["roots"] = [*roots, proposal]
+    payload["updated"] = today()
+    validate_instance(payload, GLOBAL_REGISTRY_SCHEMA)
+    descriptor, raw_candidate = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".candidate", dir=path.parent)
+    os.close(descriptor)
+    candidate = Path(raw_candidate)
+    try:
+        candidate.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        load_global_registry(candidate)
+        return candidate
+    except Exception:
+        if candidate.exists():
+            candidate.unlink()
+        raise
+
+
+def load_candidate_root(candidate_path: Path, repo: Path) -> GlobalRegistryRoot:
+    roots = load_global_registry(candidate_path)
+    matching = [root for root in roots if root.repo_root.resolve() == repo.resolve()]
+    if len(matching) != 1:
+        raise ValueError("Candidate global registry does not contain exactly one target repository entry")
+    return matching[0]
+
+
+def run_candidate_global(
+    preflight: Preflight,
+    candidate_path: Path,
+    operation_id: str,
+) -> RunSummary:
+    global_state_path = preflight.paths.global_out / "STATE.json"
+    stages: list[StageResult] = []
+    try:
+        entries = aggregate(candidate_path, preflight.paths.global_out, operation_id=operation_id)
+        stages.append(result_for_entries("aggregate", global_state_path, entries))
+    except Exception as exc:
+        stages.append(failed_result("aggregate", global_state_path, exc))
+        stages.append(skipped_result("validate_global", global_state_path, "aggregate failed"))
+        return RunSummary(version=1, status="failed", exit_code=1, stages=stages, operation_id=operation_id)
+
+    try:
+        validate_state(global_state_path)
+        verify_global_refresh(
+            preflight.paths.local_out / "STATE.json",
+            global_state_path,
+            operation_id,
+            candidate_path,
+        )
+        stages.append(passed_validation_result("validate_global", global_state_path, entries))
+    except Exception as exc:
+        stages.append(failed_result("validate_global", global_state_path, exc))
+    summary_status = "failed" if any(item.status == "failed" for item in stages) else (
+        "issues" if any(item.status == "issues" for item in stages) else "passed"
+    )
+    return RunSummary(
+        version=1,
+        status=summary_status,
+        exit_code=1 if summary_status == "failed" else (2 if summary_status == "issues" else 0),
+        stages=stages,
+        operation_id=operation_id,
+    )
+
+
+def publish_global_registration(
+    global_registry_path: Path,
+    candidate_path: Path,
+    before_bytes: bytes,
+    before_sha256: str | None,
+) -> GlobalPublication:
+    if before_sha256 is None:
+        raise ValueError("Global registry preflight hash is missing")
+    current_bytes = global_registry_path.read_bytes()
+    current_hash = hashlib.sha256(current_bytes).hexdigest()
+    if current_hash != before_sha256:
+        raise ConcurrentMutationError(
+            f"Global registry changed before publication (expected {before_sha256}, current {current_hash})"
+        )
+    load_global_registry(global_registry_path)
+    candidate_bytes = candidate_path.read_bytes()
+    expected_after_sha256 = hashlib.sha256(candidate_bytes).hexdigest()
+    try:
+        after_sha256 = atomic_replace_bytes_if_hash(global_registry_path, candidate_bytes, before_sha256)
+    except ConcurrentMutationError:
+        raise
+    except Exception as exc:
+        current_sha256 = hash_file(global_registry_path) if global_registry_path.is_file() else "missing"
+        if current_sha256 != before_sha256:
+            raise PostCommitPublicationError(
+                "Global registry publication failed after the guarded target changed.",
+                GlobalPublication(
+                    path=global_registry_path,
+                    before_bytes=before_bytes,
+                    before_sha256=before_sha256,
+                    after_sha256=expected_after_sha256,
+                ),
+            ) from exc
+        raise
+    publication = GlobalPublication(
+        path=global_registry_path,
+        before_bytes=before_bytes,
+        before_sha256=before_sha256,
+        after_sha256=after_sha256,
+    )
+    if global_registry_path.read_bytes() != candidate_bytes:
+        raise PostCommitPublicationError(
+            "Global registry after-hash readback did not match candidate bytes.",
+            publication,
+        )
+    return publication
+
+
+def guarded_restore_global(publication: GlobalPublication) -> dict[str, str]:
+    current_sha256 = hash_file(publication.path) if publication.path.is_file() else "missing"
+    if current_sha256 != publication.after_sha256:
+        return {
+            "status": "recovery_required",
+            "path": str(publication.path),
+            "before_sha256": publication.before_sha256,
+            "after_sha256": publication.after_sha256,
+            "current_sha256": current_sha256,
+        }
+    try:
+        atomic_replace_bytes_if_hash(publication.path, publication.before_bytes, publication.after_sha256)
+    except Exception:
+        current_sha256 = hash_file(publication.path) if publication.path.is_file() else "missing"
+        return {
+            "status": "recovery_required",
+            "path": str(publication.path),
+            "before_sha256": publication.before_sha256,
+            "after_sha256": publication.after_sha256,
+            "current_sha256": current_sha256,
+        }
+    return {
+        "status": "restored",
+        "path": str(publication.path),
+        "before_sha256": publication.before_sha256,
+        "after_sha256": publication.after_sha256,
+        "current_sha256": publication.before_sha256,
+    }
+
+
+def verify_visibility(
+    preflight: Preflight,
+    global_root: GlobalRegistryRoot | None = None,
+) -> tuple[bool, str]:
+    global_root = global_root or preflight.global_root
+    assert global_root is not None
     local_payload = load_json(preflight.paths.local_out / "STATE.json")
     global_payload = load_json(preflight.paths.global_out / "STATE.json")
     expected = {
-        f"{preflight.global_root.id}/{item['id']}"
+        f"{global_root.id}/{item['id']}"
         for item in local_payload.get("entries", [])
     }
     observed = {item["goal_key"] for item in global_payload.get("entries", [])}
@@ -489,15 +903,51 @@ def finish_apply(
     directory_before: dict[Path, bool],
     runtime_metrics: dict[str, int],
     message: str,
+    *,
+    register: bool = False,
+    registered: bool | None = None,
+    registration_status: str | None = None,
+    publication: GlobalPublication | None = None,
+    recovery: dict[str, Any] | None = None,
 ) -> OnboardingResult:
+    if registered is None:
+        registered = preflight.global_root is not None
     preserved_files = compare_preserved(source_before)
-    changed_preserved = [item for item in preserved_files if item["before_sha256"] != item["after_sha256"]]
+    expected_changes = {publication.path: publication.after_sha256} if publication else {}
+    covered_protected_paths = set()
+    if publication:
+        covered_protected_paths.add(publication.path)
+    if recovery and preflight.global_registry_path:
+        covered_protected_paths.add(preflight.global_registry_path)
+    changed_preserved = [
+        item
+        for item in preserved_files
+        if item["before_sha256"] != item["after_sha256"]
+        and Path(item["path"]) not in covered_protected_paths
+        and expected_changes.get(Path(item["path"])) != item["after_sha256"]
+    ]
     if changed_preserved:
         stages.append(stage("integrity", "failed", "Pre-existing protected-file hashes changed."))
-        outcome = "conflict"
-        exit_code = 1
-        visibility_verified = False
-        message = "Pre-existing Goal source or protected registry files changed during onboarding."
+        if publication:
+            recovery = guarded_restore_global(publication)
+            publication = None
+            registered = False
+            visibility_verified = False
+            preserved_files = compare_preserved(source_before)
+            if recovery["status"] == "recovery_required":
+                outcome = "recovery_required"
+                registration_status = "recovery_required"
+                message = "Pre-existing protected files changed after publication; global registry recovery is required."
+            else:
+                outcome = "conflict"
+                registration_status = "restored"
+                message = "Pre-existing protected files changed after publication; global registry was restored safely."
+            exit_code = 1
+        else:
+            outcome = "conflict"
+            exit_code = 1
+            visibility_verified = False
+            message = "Pre-existing Goal source or protected registry files changed during onboarding."
     else:
         stages.append(stage("integrity", "passed"))
 
@@ -510,8 +960,14 @@ def finish_apply(
     }
     validated_proposal = (
         preflight.proposal
-        if any(item["name"] == "validate_local" and item["status"] == "passed" for item in stages)
+        if not registered and any(item["name"] == "validate_local" and item["status"] == "passed" for item in stages)
         else None
+    )
+    registration = registration_info_from_preflight(
+        preflight,
+        requested=register,
+        authorized=register,
+        status=registration_status or ("already_registered" if registered else "not_requested"),
     )
     stages.append(stage("report", "passed"))
     result = OnboardingResult(
@@ -521,7 +977,7 @@ def finish_apply(
         mode="apply",
         target_repo=str(preflight.paths.repo),
         root_id=preflight.root_id,
-        registered=preflight.global_root is not None,
+        registered=registered,
         visibility_verified=visibility_verified,
         stages=stages,
         proposal=validated_proposal,
@@ -532,6 +988,8 @@ def finish_apply(
         directories=directories,
         preserved_files=preserved_files,
         message=message,
+        registration=registration,
+        recovery=recovery,
     )
     payload = result.to_dict()
     try:
@@ -539,6 +997,27 @@ def finish_apply(
         atomic_write_json(preflight.paths.report, payload)
         return result
     except Exception as exc:
+        report_recovery = guarded_restore_global(publication) if publication else None
+        effective_recovery = report_recovery or recovery
+        if effective_recovery and effective_recovery["status"] == "restored":
+            failure_outcome = "local_failed"
+            failure_message = f"Onboarding report failed: {exc}; global registry was restored safely."
+            failure_registered = False
+            failure_registration_status = "restored"
+        elif effective_recovery:
+            failure_outcome = "recovery_required"
+            failure_message = (
+                f"Onboarding report failed: {exc}; global registry recovery is required because a third-party change was detected."
+            )
+            failure_registered = False
+            failure_registration_status = "recovery_required"
+        else:
+            failure_outcome = "local_failed"
+            failure_message = f"Onboarding report failed: {exc}"
+            failure_registered = registered
+            failure_registration_status = registration_status
+        if effective_recovery:
+            preserved_files = compare_preserved(source_before)
         failed_stages = stages[:-1] + [stage("report", "failed", f"{type(exc).__name__}: {exc}")]
         failed_artifacts = [item for item in artifacts if item["kind"] != "onboarding_report"]
         if preflight.paths.report.is_file():
@@ -555,12 +1034,12 @@ def finish_apply(
             )
         return OnboardingResult(
             version=1,
-            outcome="local_failed",
+            outcome=failure_outcome,
             exit_code=1,
             mode="apply",
             target_repo=str(preflight.paths.repo),
             root_id=preflight.root_id,
-            registered=preflight.global_root is not None,
+            registered=failure_registered,
             visibility_verified=False,
             stages=failed_stages,
             proposal=validated_proposal,
@@ -570,11 +1049,135 @@ def finish_apply(
             artifacts=failed_artifacts,
             directories=directories,
             preserved_files=preserved_files,
-            message=f"Onboarding report failed: {exc}",
+            message=failure_message,
+            registration=registration_info_from_preflight(
+                preflight,
+                requested=register,
+                authorized=register,
+                status=failure_registration_status or ("not_published" if register else "not_requested"),
+            ),
+            recovery=effective_recovery,
         )
 
 
-def conflict_result(repo: Path, root_id: str, mode: str, exc: Exception) -> OnboardingResult:
+def registration_info(
+    *,
+    requested: bool,
+    authorized: bool,
+    global_registry_path: Path | None,
+    status: str,
+    before_sha256: str | None = None,
+    plan_sha256: str | None = None,
+    proposed_entry: dict[str, Any] | None = None,
+    planned_write_set: list[str] | None = None,
+    condition: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "requested": requested,
+        "authorized": authorized,
+        "status": status,
+        "global_registry_path": str(global_registry_path.resolve()) if global_registry_path else None,
+        "before_sha256": before_sha256,
+        "plan_sha256": plan_sha256,
+        "proposed_entry": proposed_entry,
+        "planned_write_set": sorted(set(planned_write_set or [])),
+        "condition": condition or registration_condition(status),
+    }
+
+
+def registration_info_from_preflight(
+    preflight: Preflight,
+    *,
+    requested: bool,
+    authorized: bool,
+    status: str,
+) -> dict[str, Any]:
+    paths = registration_write_paths(preflight)
+    return registration_info(
+        requested=requested,
+        authorized=authorized,
+        global_registry_path=preflight.global_registry_path,
+        status=status,
+        before_sha256=preflight.global_registry_before_hash,
+        plan_sha256=compute_registration_plan_sha256(preflight),
+        proposed_entry=preflight.proposal,
+        planned_write_set=[str(path.resolve()) for path in paths],
+    )
+
+
+def registration_write_paths(preflight: Preflight) -> list[Path]:
+    paths = [
+        preflight.paths.goal_root,
+        preflight.paths.goal_root / "active",
+        preflight.paths.goal_root / "completed",
+        preflight.paths.registry.parent,
+        preflight.paths.registry,
+        preflight.paths.local_out,
+        preflight.paths.local_out / "STATE.json",
+        preflight.paths.local_out / "STATE.md",
+        preflight.paths.report.parent,
+        preflight.paths.report,
+    ]
+    if preflight.global_root or preflight.global_registry_path:
+        paths.append(preflight.paths.global_out)
+        paths.extend([preflight.paths.global_out / "STATE.json", preflight.paths.global_out / "STATE.md"])
+    if preflight.global_root is None and preflight.global_registry_path:
+        paths.append(preflight.global_registry_path)
+        paths.append(guarded_lock_path(preflight.global_registry_path))
+    return paths
+
+
+def compute_registration_plan_sha256(preflight: Preflight) -> str:
+    payload = {
+        "version": 1,
+        "target_repo": str(preflight.paths.repo),
+        "root_id": preflight.root_id,
+        "label": preflight.label,
+        "project": preflight.project,
+        "global_registry_path": str(preflight.global_registry_path) if preflight.global_registry_path else None,
+        "global_registry_before_sha256": preflight.global_registry_before_hash,
+        "proposed_entry": preflight.proposal,
+        "repo_registry_payload": preflight.registry_payload,
+        "planned_actions": preflight.planned_actions,
+        "planned_write_set": [str(path.resolve()) for path in registration_write_paths(preflight)],
+        "goal_source_hashes": {
+            str(path): digest
+            for path, digest in sorted(snapshot_goal_sources(preflight.paths.goal_root).items(), key=lambda item: str(item[0]))
+        },
+        "artifact_hashes": {
+            str(path): digest
+            for path, digest in sorted(snapshot_artifacts(preflight.paths).items(), key=lambda item: str(item[0]))
+        },
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def registration_condition(status: str) -> str:
+    if status == "not_requested":
+        return "Global registration is not written; review the dry-run and use --register with --apply for one exact authorization."
+    if status == "rejected":
+        return "--register is accepted only with --apply and an absolute --global-registry; no writes were performed."
+    if status in {"not_published", "already_registered"}:
+        return "Registration is published only after local validation, candidate aggregation, global validation, and visibility verification."
+    if status == "published":
+        return "Global registration was atomically published and verified by after-hash readback."
+    if status == "restored":
+        return "The report boundary failed after publication; the guarded global registry restore completed."
+    if status == "recovery_required":
+        return "A third-party change crossed the post-commit recovery boundary; do not overwrite it automatically."
+    return "Global registration remains bounded by the exact target and preflight hash."
+
+
+def conflict_result(
+    repo: Path,
+    root_id: str,
+    mode: str,
+    exc: Exception,
+    *,
+    registration: dict[str, Any] | None = None,
+) -> OnboardingResult:
     result = OnboardingResult(
         version=1,
         outcome="conflict",
@@ -593,12 +1196,28 @@ def conflict_result(repo: Path, root_id: str, mode: str, exc: Exception) -> Onbo
         directories=[],
         preserved_files=[],
         message=str(exc),
+        registration=registration or registration_info(
+            requested=False,
+            authorized=False,
+            global_registry_path=None,
+            status="not_requested",
+        ),
+        recovery=None,
     )
     validate_result(result.to_dict())
     return result
 
 
-def unexpected_result(repo: Path, root_id: str, mode: str, exc: Exception) -> OnboardingResult:
+def unexpected_result(
+    repo: Path,
+    root_id: str,
+    mode: str,
+    exc: Exception,
+    *,
+    register: bool = False,
+    registration_plan_sha256: str | None = None,
+    global_registry_path: Path | None = None,
+) -> OnboardingResult:
     outcome = "local_failed" if mode == "apply" else "conflict"
     result = OnboardingResult(
         version=1,
@@ -618,6 +1237,18 @@ def unexpected_result(repo: Path, root_id: str, mode: str, exc: Exception) -> On
         directories=[],
         preserved_files=[],
         message=f"Unexpected onboarding failure: {exc}",
+        registration=registration_info(
+            requested=register,
+            authorized=False,
+            global_registry_path=global_registry_path,
+            status="rejected" if register else "not_requested",
+            plan_sha256=(
+                registration_plan_sha256
+                if registration_plan_sha256 and re.fullmatch(r"[a-f0-9]{64}", registration_plan_sha256)
+                else None
+            ),
+        ),
+        recovery=None,
     )
     validate_result(result.to_dict())
     return result
@@ -954,6 +1585,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo", type=Path)
     parser.add_argument("--rollback-report", type=Path)
     parser.add_argument("--apply", action="store_true", help="Apply repo-local scaffold for this invocation and target only.")
+    parser.add_argument(
+        "--register",
+        action="store_true",
+        help="Authorize one exact global registry publication; requires --apply, a dry-run plan hash, and an absolute --global-registry.",
+    )
+    parser.add_argument(
+        "--registration-plan-sha256",
+        help="Exact registration plan SHA-256 emitted by the preceding dry-run.",
+    )
     parser.add_argument("--root-id")
     parser.add_argument("--label")
     parser.add_argument("--project")
@@ -992,6 +1632,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     result = onboard_repository(
         args.repo,
         apply=args.apply,
+        register=args.register,
+        registration_plan_sha256=args.registration_plan_sha256,
         root_id=args.root_id,
         label=args.label,
         project=args.project,

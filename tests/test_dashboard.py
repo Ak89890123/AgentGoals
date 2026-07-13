@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import argparse
 import json
 import os
 import shutil
@@ -19,6 +20,7 @@ from agentgoals.dashboard import (
     build_dashboard,
     filter_dashboard_entries,
     group_dashboard_entries,
+    lifecycle_folder,
     load_dashboard,
     resolve_entry_path,
 )
@@ -29,7 +31,9 @@ from agentgoals.dashboard_app import (
     dashboard_asset_path,
     discover_state_path,
     format_queue_position,
+    parse_watch_interval,
     responsive_layout,
+    state_file_signature,
     status_tone,
     translate,
 )
@@ -232,6 +236,59 @@ def test_dashboard_groups_goals_by_repository_without_losing_queue_order() -> No
     assert (groups[1].total, groups[1].open, groups[1].runnable, groups[1].blocked) == (2, 2, 1, 1)
 
 
+def test_dashboard_groups_each_repository_by_existing_lifecycle_folders() -> None:
+    dashboard = build_dashboard(
+        make_payload(
+            [
+                make_entry("active-goal", contract_path="C:/repo/goals/active/active-goal/CONTRACT.md"),
+                make_entry(
+                    "done-goal",
+                    status="completed",
+                    scheduling_status="done",
+                    queue_position=None,
+                    contract_path="C:/repo/goals/completed/done-goal/CONTRACT.md",
+                ),
+                make_entry(
+                    "cold-goal",
+                    status="draft",
+                    contract_path="C:/repo/goals/frozen/cold-goal/CONTRACT.md",
+                ),
+            ]
+        )
+    )
+
+    group = group_dashboard_entries(dashboard.entries)[0]
+
+    assert [item.name for item in group.lifecycle_groups] == ["active", "completed", "frozen"]
+    assert [[entry.id for entry in item.entries] for item in group.lifecycle_groups] == [
+        ["active-goal"],
+        ["done-goal"],
+        ["cold-goal"],
+    ]
+    assert lifecycle_folder(group.lifecycle_groups[2].entries[0]) == "frozen"
+
+
+def test_lifecycle_folder_uses_location_before_status_and_falls_back_for_legacy_paths() -> None:
+    dashboard = build_dashboard(
+        make_payload(
+            [
+                make_entry(
+                    "misfiled",
+                    status="completed",
+                    scheduling_status="done",
+                    queue_position=None,
+                    contract_path="C:/repo/goals/active/misfiled/CONTRACT.md",
+                ),
+                make_entry("legacy-done", status="completed", scheduling_status="done", queue_position=None),
+            ]
+        )
+    )
+
+    entries = {entry.id: entry for entry in dashboard.entries}
+    assert lifecycle_folder(entries["misfiled"]) == "active"
+    assert lifecycle_folder(entries["legacy-done"]) == "completed"
+
+
 def test_resolve_entry_path_accepts_only_existing_file_under_goal_root() -> None:
     with dashboard_test_dir() as temp_dir:
         goal_root = temp_dir / "goals"
@@ -335,7 +392,29 @@ def test_desktop_shell_helpers_keep_status_and_cli_semantics_stable() -> None:
     assert format_queue_position(None) == "—"
     assert format_queue_position(7) == "07"
     assert build_parser().parse_args([]).state == Path("outputs/global/STATE.json")
+    assert build_parser().parse_args([]).watch_interval_ms == 1000
     assert build_parser().parse_args(["--probe-output", "probe.json"]).probe_output == Path("probe.json")
+    args = build_parser().parse_args(["--watch", "--watch-interval-ms", "750"])
+    assert args.watch is True
+    assert args.watch_interval_ms == 750
+
+
+def test_watch_interval_and_state_signature_are_deterministic() -> None:
+    assert parse_watch_interval("50") == 50
+    assert parse_watch_interval("60000") == 60000
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_watch_interval("49")
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_watch_interval("not-a-number")
+
+    with dashboard_test_dir() as temp_dir:
+        state_path = temp_dir / "STATE.json"
+        assert state_file_signature(state_path) is None
+        state_path.write_text("{}", encoding="utf-8")
+        first = state_file_signature(state_path)
+        assert first is not None
+        state_path.write_text("{\"changed\": true}", encoding="utf-8")
+        assert state_file_signature(state_path) != first
 
 
 def test_dashboard_translations_cover_traditional_chinese_and_fallback_to_english() -> None:
@@ -431,7 +510,27 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             assert app.model.summary.total == 1
             repo_row = app.tree.get_children()[0]
             assert repo_row == "repo::repo-a"
-            assert app.tree.get_children(repo_row) == ("repo-a/demo",)
+            lifecycle_row = app.tree.get_children(repo_row)[0]
+            assert lifecycle_row == "folder::repo-a::active"
+            assert app.tree.get_children(lifecycle_row) == ("repo-a/demo",)
+            assert not app.tree.item(repo_row, "open")
+            assert not app.tree.item(lifecycle_row, "open")
+            assert app.tree.selection() == ()
+            app.tree.item(repo_row, open=True)
+            app.tree.item(lifecycle_row, open=True)
+            app.tree.selection_set("repo-a/demo")
+            app.refresh()
+            refreshed_repo_row = app.tree.get_children()[0]
+            refreshed_lifecycle_row = app.tree.get_children(refreshed_repo_row)[0]
+            assert app.tree.item(refreshed_repo_row, "open")
+            assert app.tree.item(refreshed_lifecycle_row, "open")
+            assert app.tree.selection() == ("repo-a/demo",)
+            app.tree.item(refreshed_lifecycle_row, open=False)
+            app.refresh()
+            refreshed_repo_row = app.tree.get_children()[0]
+            refreshed_lifecycle_row = app.tree.get_children(refreshed_repo_row)[0]
+            assert app.tree.item(refreshed_repo_row, "open")
+            assert not app.tree.item(refreshed_lifecycle_row, "open")
             assert app.root.title() == "AgentGoals — 本機儀表板"
             assert hasattr(app, "window_icon")
             assert app.tree.heading("status")["text"] == "狀態"
@@ -445,5 +544,41 @@ def test_desktop_window_constructs_and_loads_state_without_render_exception() ->
             app._change_language()
             assert app.root.title() == "AgentGoals — Local Dashboard"
             assert app.tree.heading("status")["text"] == "STATUS"
+        finally:
+            root.destroy()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="First release is Windows-only")
+def test_development_watch_reloads_state_and_preserves_selected_goal() -> None:
+    with dashboard_test_dir() as temp_dir:
+        state_path = temp_dir / "STATE.json"
+        state_path.write_text(json.dumps(make_payload([make_entry("demo")]), ensure_ascii=False), encoding="utf-8")
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            app = DashboardApplication(root, state_path, watch=True, watch_interval_ms=50)
+            root.update_idletasks()
+            repo_row = app.tree.get_children()[0]
+            lifecycle_row = app.tree.get_children(repo_row)[0]
+            app.tree.item(repo_row, open=True)
+            app.tree.item(lifecycle_row, open=True)
+            app.tree.selection_set("repo-a/demo")
+
+            state_path.write_text(
+                json.dumps(make_payload([make_entry("demo"), make_entry("next", queue_position=2)]), ensure_ascii=False),
+                encoding="utf-8",
+            )
+            root.after(250, root.quit)
+            root.mainloop()
+
+            assert app.model is not None
+            assert app.model.summary.total == 2
+            assert app.tree.selection() == ("repo-a/demo",)
+            refreshed_repo_row = app.tree.get_children()[0]
+            refreshed_lifecycle_row = app.tree.get_children(refreshed_repo_row)[0]
+            assert app.tree.item(refreshed_repo_row, "open")
+            assert app.tree.item(refreshed_lifecycle_row, "open")
+            assert "即時重新整理" in app.status_line.get()
+            assert "即時重新整理已啟用" in app.footer_label.cget("text")
         finally:
             root.destroy()

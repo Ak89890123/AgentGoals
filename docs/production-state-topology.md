@@ -40,11 +40,11 @@ Repo-local:
 Global `.codex` registry:
 
 ```text
-C:/Users/jimmy0302/.codex/goal-lifecycle/
+<global-codex-root>/goal-lifecycle/
   REGISTRY.json
 ```
 
-The reviewed global registry file exists at `C:/Users/jimmy0302/.codex/goal-lifecycle/REGISTRY.json`. Global aggregate STATE output is generated into caller-selected output directories, such as `outputs/global`, and is not written under `.codex` by the current read-only model.
+The reviewed global registry file is supplied by the operator at `<global-codex-root>/goal-lifecycle/REGISTRY.json`. Global aggregate STATE output is generated into caller-selected output directories, such as `outputs/global`, and is not written under `.codex` by the current read-only model.
 
 ## Registry Semantics
 
@@ -75,7 +75,7 @@ Current implementation:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path src).Path
-.\.venv\Scripts\python -m agentgoals.aggregate --registry C:\Users\jimmy0302\.codex\goal-lifecycle\REGISTRY.json --out outputs\global
+.\.venv\Scripts\python -m agentgoals.aggregate --registry <absolute-global-registry> --out outputs\global
 ```
 
 The command validates the global registry against `schemas/global-registry.schema.json` and validates each repo-local STATE against `schemas/goal-state.schema.json` before merging. Repo-local relative entry paths are rebased against the registered `repo_root` and must remain under the registered `goal_root`.
@@ -91,14 +91,14 @@ Implemented in the read-only aggregator:
 
 Not allowed without separate approval:
 
-- writing under `C:/Users/jimmy0302/.codex`;
+- writing under the operator-supplied global `.codex` root;
 - adding hooks, watchers, daemons, scheduled tasks, or background services;
 - auto-editing repo Goal Contract, PLAN, or EVIDENCE files;
 - scanning outside registered roots or registered STATE paths.
 
 ## Settled Current Choices
 
-- Current global registry path: `C:/Users/jimmy0302/.codex/goal-lifecycle/REGISTRY.json`.
+- Current global registry path: the operator-supplied `<absolute-global-registry>`.
 - Current registry shape stores explicit `repo_root`, `goal_root`, and `state_path`.
 - Current repo-local generated STATE remains derived output and is ignored in this repo.
 - Current aggregate includes the entries present in each registered repo STATE, including completed goals.

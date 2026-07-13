@@ -14,7 +14,7 @@ This repository is a harness for CODEX Skill lifecycle work, centered on Goal Co
 - `fixtures/` is reserved for synthetic goal roots used by reconciler tests.
 - `src/agentgoals/` contains the canonical read-only reconciler, validator, renderer, global aggregator, deterministic orchestrator, Goal queue query, atomic output helper, explicit multi-repo onboarding command, versioned session-handoff assessment/evaluation commands, and the AgentGoals desktop view model/application. `src/goal_lifecycle/` is a bounded 0.x compatibility layer only.
 - `apps/goal_dashboard.pyw` is the no-console desktop launcher; `scripts/build_dashboard.ps1` creates the repo-local Windows package.
-- `.omo/evidence/` contains independent review reports for aggregator readiness.
+- `docs/reviews/` contains durable independent review reports shared across Goals.
 
 Goal Contract, PLAN, and EVIDENCE files are the authoritative source. A generated central STATE must be treated as a derived index or dashboard only.
 

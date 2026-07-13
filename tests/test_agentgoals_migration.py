@@ -6,6 +6,19 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
+
+SKILL_ROOT_CANDIDATES = (
+    Path("goals/active/agentgoals-product-rename/skill-package"),
+    Path("goals/completed/agentgoals-product-rename/skill-package"),
+)
+SKILL_FIXTURES_AVAILABLE = any(path.is_dir() for path in SKILL_ROOT_CANDIDATES)
+
+
+def agentgoals_skill_root() -> Path:
+    return next(path for path in SKILL_ROOT_CANDIDATES if path.is_dir())
+
 
 def test_distribution_uses_agentgoals_with_one_legacy_cli_alias() -> None:
     # Given: the package metadata after the public rename.
@@ -48,9 +61,13 @@ def test_agentgoals_cli_reports_new_brand_and_legacy_program_name_is_optional(ca
     assert capsys.readouterr().out.strip() == "agentgoals 0.2.1"
 
 
+@pytest.mark.skipif(
+    not SKILL_FIXTURES_AVAILABLE,
+    reason="local Goal Skill fixtures are intentionally outside the public checkout",
+)
 def test_agentgoals_skill_directories_are_staged_with_matching_frontmatter() -> None:
     # Given: the four accepted product-owned Skill capabilities.
-    skill_root = Path("goals/active/agentgoals-product-rename/skill-package")
+    skill_root = agentgoals_skill_root()
     expected = ("ag-contract", "ag-onboarding", "ag-continue", "ag-end")
 
     # When: staged canonical Skill files are read.
@@ -63,9 +80,13 @@ def test_agentgoals_skill_directories_are_staged_with_matching_frontmatter() -> 
     assert frontmatter_names == {name: True for name in expected}
 
 
+@pytest.mark.skipif(
+    not SKILL_FIXTURES_AVAILABLE,
+    reason="local Goal Skill fixtures are intentionally outside the public checkout",
+)
 def test_agentgoals_skill_manifests_route_to_canonical_skill_names() -> None:
     # Given: the four canonical AgentGoals Skill packages.
-    skill_root = Path("goals/active/agentgoals-product-rename/skill-package")
+    skill_root = agentgoals_skill_root()
     expected = ("ag-contract", "ag-onboarding", "ag-continue", "ag-end")
 
     # When: their agent manifests are inspected.

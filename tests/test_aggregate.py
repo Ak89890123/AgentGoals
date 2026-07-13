@@ -117,6 +117,25 @@ def test_global_registry_accepts_utf8_bom() -> None:
     assert roots[0].id == "bom-registry"
 
 
+def test_global_registry_rejects_duplicate_ids_and_repository_paths() -> None:
+    first = make_workspace("aggregate-duplicate-first")
+    second = make_workspace("aggregate-duplicate-second")
+    registry = first / "global" / "REGISTRY.json"
+
+    duplicate_id = global_root(first, "duplicate", first / "outputs" / "STATE.json")
+    duplicate_id_other_repo = global_root(second, "duplicate", second / "outputs" / "STATE.json")
+    write_global_registry(registry, [duplicate_id, duplicate_id_other_repo])
+    with pytest.raises(ValueError, match="duplicate root IDs"):
+        load_global_registry(registry)
+
+    duplicate_repo = dict(duplicate_id)
+    duplicate_repo["id"] = "duplicate-repo"
+    duplicate_repo_registry = first / "global-two" / "REGISTRY.json"
+    write_global_registry(duplicate_repo_registry, [duplicate_id, duplicate_repo])
+    with pytest.raises(ValueError, match="duplicate repository paths"):
+        load_global_registry(duplicate_repo_registry)
+
+
 def test_global_registry_rejects_relative_paths() -> None:
     workspace = make_workspace("aggregate-relative-registry")
     registry = workspace / "global" / "REGISTRY.json"

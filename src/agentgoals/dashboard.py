@@ -13,6 +13,7 @@ OPEN_STATUSES = {"draft", "review_pending", "ready", "in_progress", "blocked"}
 RUNNABLE_SCHEDULING = {"runnable", "in_progress"}
 BLOCKED_SCHEDULING = {"blocked", "dependency_blocked"}
 SOURCE_FIELDS = {"contract_path", "plan_path", "evidence_path"}
+LIFECYCLE_FOLDERS = ("active", "completed", "frozen")
 
 
 class DashboardError(ValueError):
@@ -100,9 +101,16 @@ class DashboardEntry:
 
 
 @dataclass(frozen=True)
+class LifecycleGroup:
+    name: str
+    entries: tuple[DashboardEntry, ...]
+
+
+@dataclass(frozen=True)
 class RepositoryGroup:
     root_id: str
     entries: tuple[DashboardEntry, ...]
+    lifecycle_groups: tuple[LifecycleGroup, ...]
     total: int
     open: int
     runnable: int
@@ -204,6 +212,7 @@ def group_dashboard_entries(entries: Iterable[DashboardEntry]) -> list[Repositor
         RepositoryGroup(
             root_id=root_id,
             entries=tuple(repo_entries),
+            lifecycle_groups=_group_by_lifecycle_folder(repo_entries),
             total=len(repo_entries),
             open=sum(entry.status in OPEN_STATUSES for entry in repo_entries),
             runnable=sum(entry.scheduling_status in RUNNABLE_SCHEDULING for entry in repo_entries),
@@ -214,6 +223,35 @@ def group_dashboard_entries(entries: Iterable[DashboardEntry]) -> list[Repositor
         )
         for root_id, repo_entries in grouped.items()
     ]
+
+
+def lifecycle_folder(entry: DashboardEntry) -> str:
+    """Infer the displayed lifecycle folder from the source artifact location."""
+    try:
+        relative = Path(entry.contract_path).relative_to(Path(entry.goal_root))
+        folder = relative.parts[0].casefold()
+        if folder in LIFECYCLE_FOLDERS:
+            return folder
+    except (IndexError, ValueError):
+        pass
+
+    # Compatibility for older STATE fixtures that predate directory-mode paths.
+    if entry.status in {"completed", "cancelled"}:
+        return "completed"
+    if entry.status == "frozen":
+        return "frozen"
+    return "active"
+
+
+def _group_by_lifecycle_folder(entries: Iterable[DashboardEntry]) -> tuple[LifecycleGroup, ...]:
+    grouped: dict[str, list[DashboardEntry]] = {name: [] for name in LIFECYCLE_FOLDERS}
+    for entry in entries:
+        grouped[lifecycle_folder(entry)].append(entry)
+    return tuple(
+        LifecycleGroup(name=name, entries=tuple(grouped[name]))
+        for name in LIFECYCLE_FOLDERS
+        if grouped[name]
+    )
 
 
 def resolve_entry_path(entry: DashboardEntry, field_name: str) -> Path:

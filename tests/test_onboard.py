@@ -21,6 +21,36 @@ def make_repo(name: str) -> Path:
     return repo
 
 
+def registration_plan(repo: Path, global_registry: Path) -> str:
+    dry_run = onboard_repository(repo, global_registry_path=global_registry.resolve())
+    assert dry_run.outcome == "dry_run_ready"
+    assert dry_run.registration["plan_sha256"]
+    return dry_run.registration["plan_sha256"]
+
+
+def test_canonical_onboarding_rejects_relative_repository_without_resolution() -> None:
+    result = onboard_repository(Path("relative/repo"))
+
+    assert result.outcome == "conflict"
+    assert result.exit_code == 1
+    assert result.target_repo == str(Path("relative/repo"))
+    assert "absolute repository path" in result.message
+    assert result.metrics == {
+        "resume_context_bytes": 0,
+        "semantic_model_calls": 0,
+        "pipeline_invocations": 0,
+    }
+
+
+def test_canonical_cli_rejects_relative_repository(capsys) -> None:
+    exit_code = main(["--repo", "relative/repo", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 1
+    assert payload["outcome"] == "conflict"
+    assert payload["message"] == "--repo must be an absolute repository path."
+
+
 def test_dry_run_reports_plan_without_writing() -> None:
     repo = make_repo("onboard-dry-run")
 
@@ -547,6 +577,27 @@ def test_schema_rejects_visibility_and_outcome_contradictions() -> None:
         onboard_module.validate_result(outcome_contradiction)
 
 
+def test_schema_rejects_contradictory_registration_and_recovery_states() -> None:
+    repo = make_repo("onboard-schema-registration-contradiction")
+    result = onboard_repository(repo)
+
+    authorization_contradiction = result.to_dict()
+    authorization_contradiction["registration"]["authorized"] = True
+    with pytest.raises(ValueError, match="authorized|False was expected"):
+        onboard_module.validate_result(authorization_contradiction)
+
+    recovery_contradiction = result.to_dict()
+    recovery_contradiction["recovery"] = {
+        "status": "recovery_required",
+        "path": str((repo / "operator" / "REGISTRY.json").resolve()),
+        "before_sha256": "a" * 64,
+        "after_sha256": "b" * 64,
+        "current_sha256": "c" * 64,
+    }
+    with pytest.raises(ValueError, match="recovery_required|const"):
+        onboard_module.validate_result(recovery_contradiction)
+
+
 def test_custom_path_artifacts_are_not_rollback_eligible() -> None:
     repo = make_repo("onboard-rollback-custom")
     result = onboard_repository(
@@ -670,3 +721,477 @@ def test_cli_hash_guarded_rollback(capsys) -> None:
     assert exit_code == 2
     assert payload["outcome"] == "rollback_review_required"
     assert payload["deleted"] == []
+
+
+def test_register_requires_apply_and_absolute_global_registry_without_writes() -> None:
+    repo = make_repo("onboard-register-gate")
+    relative_registry = repo / "operator" / "REGISTRY.json"
+
+    missing_apply = onboard_repository(
+        repo,
+        register=True,
+        global_registry_path=relative_registry,
+    )
+    missing_registry = onboard_repository(repo, apply=True, register=True)
+
+    assert missing_apply.outcome == "conflict"
+    assert missing_registry.outcome == "conflict"
+    assert "--apply" in str(missing_apply.message)
+    assert "absolute" in str(missing_apply.message)
+    assert "global registry" in str(missing_registry.message).lower()
+    assert not (repo / "goals").exists()
+    assert not (repo / "registry").exists()
+    assert not relative_registry.exists()
+
+    bound_repo = make_repo("onboard-register-plan-gate")
+    bound_registry = bound_repo / "operator" / "REGISTRY.json"
+    write_global_registry(bound_registry, [])
+    no_plan = onboard_repository(
+        bound_repo,
+        apply=True,
+        register=True,
+        global_registry_path=bound_registry.resolve(),
+    )
+    plan = registration_plan(bound_repo, bound_registry)
+    mismatched_plan = onboard_repository(
+        bound_repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=("0" if plan[0] != "0" else "1") + plan[1:],
+        global_registry_path=bound_registry.resolve(),
+    )
+
+    assert no_plan.outcome == "conflict"
+    assert "plan SHA" in str(no_plan.message)
+    assert mismatched_plan.outcome == "conflict"
+    assert "does not match" in str(mismatched_plan.message)
+    assert not (bound_repo / "goals").exists()
+
+
+def test_dry_run_discloses_registration_target_entry_and_exact_write_set() -> None:
+    repo = make_repo("onboard-register-dry-run")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+
+    result = onboard_repository(repo, global_registry_path=global_registry)
+
+    assert result.outcome == "dry_run_ready"
+    registration = result.registration
+    assert registration["requested"] is False
+    assert registration["authorized"] is False
+    assert registration["global_registry_path"] == str(global_registry.resolve())
+    assert registration["before_sha256"] == hashlib.sha256(global_registry.read_bytes()).hexdigest()
+    assert registration["proposed_entry"]["repo_root"] == str(repo.resolve())
+    assert str((repo / "registry" / "REGISTRY.json").resolve()) in registration["planned_write_set"]
+    assert str(global_registry.resolve()) in registration["planned_write_set"]
+    assert str((repo / "outputs" / "global" / "STATE.json").resolve()) in registration["planned_write_set"]
+    assert len(registration["plan_sha256"]) == 64
+    onboard_module.validate_result(result.to_dict())
+
+
+def test_authorized_register_publishes_once_and_verifies_global_visibility() -> None:
+    repo = make_repo("onboard-register-success")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    source_paths = sorted((repo / "goals").rglob("*.md"))
+    source_before = {path: path.read_bytes() for path in source_paths}
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    plan_sha256 = registration_plan(repo, global_registry)
+
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    payload = json.loads(global_registry.read_text(encoding="utf-8"))
+    assert result.outcome == "visibility_verified"
+    assert result.exit_code == 0
+    assert result.registered is True
+    assert result.visibility_verified is True
+    assert result.registration["requested"] is True
+    assert result.registration["authorized"] is True
+    assert result.registration["status"] == "published"
+    assert str((global_registry.parent / ".REGISTRY.json.agentgoals.lock").resolve()) in result.registration["planned_write_set"]
+    assert len(payload["roots"]) == 1
+    assert Path(payload["roots"][0]["repo_root"]) == repo.resolve()
+    assert global_registry.read_bytes() != before
+    assert {path: path.read_bytes() for path in source_paths} == source_before
+    global_preserved = next(item for item in result.preserved_files if item["path"] == str(global_registry.resolve()))
+    assert global_preserved["before_sha256"] == hashlib.sha256(before).hexdigest()
+    assert global_preserved["after_sha256"] == hashlib.sha256(global_registry.read_bytes()).hexdigest()
+    validate_json_file(repo / "outputs" / "ONBOARDING.json", Path("schemas/onboarding-result.schema.json"))
+
+
+def test_authorized_register_supports_spaces_and_unicode_paths() -> None:
+    repo = make_repo("onboard register 空間")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator config" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    plan_sha256 = registration_plan(repo, global_registry)
+
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "visibility_verified"
+    assert result.registration["global_registry_path"] == str(global_registry.resolve())
+    assert Path(result.registration["proposed_entry"]["repo_root"]) == repo.resolve()
+
+
+def test_legacy_apply_with_unregistered_global_registry_remains_proposal_only() -> None:
+    repo = make_repo("onboard-register-legacy-global")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    plan_sha256 = registration_plan(repo, global_registry)
+
+    result = onboard_repository(repo, apply=True, global_registry_path=global_registry.resolve())
+
+    assert result.outcome == "registration_required"
+    assert result.registered is False
+    assert result.registration["requested"] is False
+    assert global_registry.read_bytes() == before
+
+
+def test_authorized_register_candidate_failure_preserves_global_registry(monkeypatch) -> None:
+    repo = make_repo("onboard-register-candidate-failure")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    plan_sha256 = registration_plan(repo, global_registry)
+
+    monkeypatch.setattr(
+        onboard_module,
+        "aggregate",
+        lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("candidate aggregate rejected")),
+    )
+
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "global_failed"
+    assert result.exit_code == 1
+    assert global_registry.read_bytes() == before
+    assert result.registration["status"] == "not_published"
+
+
+def test_candidate_visibility_failure_preserves_global_registry(monkeypatch) -> None:
+    repo = make_repo("onboard-register-visibility-failure")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    plan_sha256 = registration_plan(repo, global_registry)
+
+    monkeypatch.setattr(onboard_module, "verify_visibility", lambda *args, **kwargs: (False, "missing target key"))
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "global_failed"
+    assert result.registration["status"] == "not_published"
+    assert global_registry.read_bytes() == before
+
+
+def test_authorized_register_is_idempotent_for_existing_registration() -> None:
+    repo = make_repo("onboard-register-idempotent")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    first_plan_sha256 = registration_plan(repo, global_registry)
+
+    first = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=first_plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+    before_second = global_registry.read_bytes()
+    second_plan_sha256 = registration_plan(repo, global_registry)
+    second = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=second_plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert first.outcome == "visibility_verified"
+    assert second.outcome == "visibility_verified"
+    assert second.registration["status"] == "already_registered"
+    assert second.proposal is None
+    assert global_registry.read_bytes() == before_second
+
+
+def test_concurrent_global_registry_mutation_is_not_overwritten(monkeypatch) -> None:
+    repo = make_repo("onboard-register-concurrent")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    plan_sha256 = registration_plan(repo, global_registry)
+    real_publish = onboard_module.publish_global_registration
+
+    def mutate_then_publish(*args, **kwargs):
+        path = args[0]
+        path.write_bytes(path.read_bytes() + b"\n")
+        return real_publish(*args, **kwargs)
+
+    monkeypatch.setattr(onboard_module, "publish_global_registration", mutate_then_publish)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "conflict"
+    assert result.registration["status"] == "not_published"
+    assert global_registry.read_bytes().endswith(b"\n")
+    assert "changed" in str(result.message).lower() or any(
+        item["name"] == "registration" and item["status"] == "failed" for item in result.stages
+    )
+
+
+def test_atomic_global_replace_failure_preserves_previous_bytes(monkeypatch) -> None:
+    repo = make_repo("onboard-register-replace-failure")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    plan_sha256 = registration_plan(repo, global_registry)
+    real_replace = onboard_module.atomic_replace_bytes_if_hash
+
+    def fail_global_replace(path, data, expected_sha256):
+        if path.resolve() == global_registry.resolve():
+            raise OSError("replace denied")
+        return real_replace(path, data, expected_sha256)
+
+    monkeypatch.setattr(onboard_module, "atomic_replace_bytes_if_hash", fail_global_replace)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "global_failed"
+    assert global_registry.read_bytes() == before
+    assert result.registration["status"] == "not_published"
+
+
+def test_post_commit_atomic_failure_restores_global_registry(monkeypatch) -> None:
+    repo = make_repo("onboard-register-post-commit-restore")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    plan_sha256 = registration_plan(repo, global_registry)
+    real_replace = onboard_module.atomic_replace_bytes_if_hash
+    calls = 0
+
+    def fail_after_replace(path, data, expected_sha256):
+        nonlocal calls
+        result = real_replace(path, data, expected_sha256)
+        calls += 1
+        if path.resolve() == global_registry.resolve() and calls == 1:
+            raise OSError("readback interrupted")
+        return result
+
+    monkeypatch.setattr(onboard_module, "atomic_replace_bytes_if_hash", fail_after_replace)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "global_failed"
+    assert result.recovery is not None
+    assert result.recovery["status"] == "restored"
+    assert global_registry.read_bytes() == before
+    onboard_module.validate_result(result.to_dict())
+
+
+def test_post_commit_atomic_failure_preserves_third_party_change(monkeypatch) -> None:
+    repo = make_repo("onboard-register-post-commit-third-party")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    plan_sha256 = registration_plan(repo, global_registry)
+    real_replace = onboard_module.atomic_replace_bytes_if_hash
+    calls = 0
+
+    def fail_after_third_party_change(path, data, expected_sha256):
+        nonlocal calls
+        result = real_replace(path, data, expected_sha256)
+        calls += 1
+        if path.resolve() == global_registry.resolve() and calls == 1:
+            path.write_bytes(path.read_bytes() + b" third-party")
+            raise OSError("readback interrupted")
+        return result
+
+    monkeypatch.setattr(onboard_module, "atomic_replace_bytes_if_hash", fail_after_third_party_change)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "recovery_required"
+    assert result.recovery is not None
+    assert result.recovery["status"] == "recovery_required"
+    assert global_registry.read_bytes().endswith(b" third-party")
+    onboard_module.validate_result(result.to_dict())
+
+
+def test_post_commit_report_failure_restores_global_registry(monkeypatch) -> None:
+    repo = make_repo("onboard-register-report-recovery")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    plan_sha256 = registration_plan(repo, global_registry)
+    before = global_registry.read_bytes()
+    real_write = onboard_module.atomic_write_json
+
+    def fail_report(path, payload):
+        if path.name == "ONBOARDING.json":
+            raise OSError("report denied")
+        return real_write(path, payload)
+
+    monkeypatch.setattr(onboard_module, "atomic_write_json", fail_report)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "local_failed"
+    assert result.registration["status"] == "restored"
+    assert result.recovery is not None
+    assert result.recovery["status"] == "restored"
+    assert global_registry.read_bytes() == before
+    onboard_module.validate_result(result.to_dict())
+
+
+def test_post_commit_recovery_requires_manual_action_after_third_party_change(monkeypatch) -> None:
+    repo = make_repo("onboard-register-recovery-required")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    plan_sha256 = registration_plan(repo, global_registry)
+    real_write = onboard_module.atomic_write_json
+    real_restore = onboard_module.guarded_restore_global
+
+    def fail_report(path, payload):
+        if path.name == "ONBOARDING.json":
+            raise OSError("report denied")
+        return real_write(path, payload)
+
+    def mutate_then_restore(publication):
+        publication.path.write_bytes(publication.path.read_bytes() + b" third-party")
+        return real_restore(publication)
+
+    monkeypatch.setattr(onboard_module, "atomic_write_json", fail_report)
+    monkeypatch.setattr(onboard_module, "guarded_restore_global", mutate_then_restore)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "recovery_required"
+    assert result.registration["status"] == "recovery_required"
+    assert result.recovery is not None
+    assert result.recovery["status"] == "recovery_required"
+    assert global_registry.read_bytes().endswith(b" third-party")
+    onboard_module.validate_result(result.to_dict())
+
+
+def test_post_commit_resume_failure_restores_global_registry(monkeypatch) -> None:
+    repo = make_repo("onboard-register-resume-recovery")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    plan_sha256 = registration_plan(repo, global_registry)
+    before = global_registry.read_bytes()
+
+    monkeypatch.setattr(
+        onboard_module,
+        "build_resume",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("resume interrupted")),
+    )
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "local_failed"
+    assert result.registration["status"] == "restored"
+    assert result.recovery is not None
+    assert result.recovery["status"] == "restored"
+    assert global_registry.read_bytes() == before
+    onboard_module.validate_result(result.to_dict())
+
+
+def test_post_commit_source_integrity_failure_restores_global_registry(monkeypatch) -> None:
+    repo = make_repo("onboard-register-source-integrity-recovery")
+    write_goal(repo, "active", "ready-goal", "ready", evidence_status="complete", review_verdict="PASS")
+    global_registry = repo / "operator" / "REGISTRY.json"
+    write_global_registry(global_registry, [])
+    before = global_registry.read_bytes()
+    source = repo / "goals" / "active" / "ready-goal" / "CONTRACT.md"
+    real_resume = onboard_module.build_resume
+
+    def mutate_source_after_publication(paths, visibility_verified):
+        source.write_text(source.read_text(encoding="utf-8") + "\nexternal mutation\n", encoding="utf-8")
+        return real_resume(paths, visibility_verified)
+
+    plan_sha256 = registration_plan(repo, global_registry)
+    monkeypatch.setattr(onboard_module, "build_resume", mutate_source_after_publication)
+    result = onboard_repository(
+        repo,
+        apply=True,
+        register=True,
+        registration_plan_sha256=plan_sha256,
+        global_registry_path=global_registry.resolve(),
+    )
+
+    assert result.outcome == "conflict"
+    assert result.registration["status"] == "restored"
+    assert result.recovery is not None
+    assert result.recovery["status"] == "restored"
+    assert global_registry.read_bytes() == before
+    assert "external mutation" in source.read_text(encoding="utf-8")
+    onboard_module.validate_result(result.to_dict())

@@ -15,6 +15,10 @@ import pytest
 LAUNCHER = Path(
     "goals/active/portable-goal-onboarding-toolkit/skill-package/goal-onboarding/scripts/invoke_goal_lifecycle.py"
 )
+pytestmark = pytest.mark.skipif(
+    not LAUNCHER.is_file(),
+    reason="local Goal Skill fixtures are intentionally outside the public checkout",
+)
 ABS_REPO = Path.cwd().resolve()
 
 
@@ -69,6 +73,31 @@ def test_launcher_adds_apply_and_global_registry_only_when_supplied() -> None:
         "--apply",
         "--global-registry",
         str(Path("C:/config/REGISTRY.json")),
+        "--json",
+    ]
+
+
+def test_launcher_forwards_single_registration_authorization() -> None:
+    launcher = load_launcher()
+
+    arguments = launcher.build_onboard_arguments(
+        Path("C:/repo"),
+        apply=True,
+        register=True,
+        registration_plan_sha256="a" * 64,
+        global_registry=Path("C:/config/REGISTRY.json"),
+    )
+
+    assert arguments == [
+        "onboard",
+        "--repo",
+        "C:\\repo",
+        "--apply",
+        "--register",
+        "--registration-plan-sha256",
+        "a" * 64,
+        "--global-registry",
+        "C:\\config\\REGISTRY.json",
         "--json",
     ]
 
@@ -145,6 +174,42 @@ def test_launcher_runs_cli_without_shell_and_forwards_exit(monkeypatch) -> None:
     ]
     assert observed["shell"] is False
     assert observed["capture_output"] is True
+
+
+def test_launcher_prefers_canonical_agentgoals_path_cli() -> None:
+    launcher = load_launcher()
+    with launcher_test_dir() as temp_dir:
+        binary = temp_dir / "agentgoals.exe"
+        binary.write_text("placeholder", encoding="utf-8")
+        binary.chmod(0o755)
+
+        resolved = launcher.resolve_command(
+            env={},
+            which=lambda name: str(binary) if name == "agentgoals" else None,
+            module_origin=None,
+        )
+
+    assert resolved == [str(binary.resolve())]
+
+
+def test_launcher_supports_canonical_developer_home() -> None:
+    launcher = load_launcher()
+    with launcher_test_dir() as temp_dir:
+        home = temp_dir / "toolkit"
+        interpreter = home / ".venv" / "Scripts" / "python.exe"
+        module = home / "src" / "agentgoals" / "__init__.py"
+        interpreter.parent.mkdir(parents=True)
+        interpreter.write_text("placeholder", encoding="utf-8")
+        module.parent.mkdir(parents=True)
+        module.write_text('__version__ = "0.2.1"', encoding="utf-8")
+
+        resolved = launcher.resolve_command(
+            env={"AGENTGOALS_HOME": str(home.resolve())},
+            which=lambda _: None,
+            module_origin=None,
+        )
+
+    assert resolved == [str(interpreter.resolve()), "-m", "agentgoals.cli"]
 
 
 def test_launcher_override_rejects_shell_command_string(capsys) -> None:

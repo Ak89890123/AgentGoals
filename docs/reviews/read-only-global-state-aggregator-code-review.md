@@ -11,8 +11,7 @@ Scope reviewed:
 - `docs/production-state-topology.md`
 - `docs/global-registry-schema-notes.md`
 - `docs/proposals/global-goal-registry.md`
-- `goals/active/codex-skill-optimization/EVIDENCE.md`
-- `goals/completed/production-state-location/EVIDENCE.md`
+- repo-local review and acceptance records for the associated Goal work
 
 Skill-perspective check:
 
@@ -65,7 +64,7 @@ None.
 - Inspected commit raw diff: 9 scoped files changed, 439 insertions and 9 deletions.
 - Ran full test suite: `.\.venv\Scripts\python -m pytest` with repo-local TEMP/TMP. Result: 22 passed in 0.53s.
 - Validated generated global STATE: `.\.venv\Scripts\python -m goal_lifecycle.validate --registry registry/REGISTRY.json --state outputs\global\STATE.json`. Result: exit 0.
-- Loaded external global registry through `load_global_registry(...)`. Result: 1 root, `goal-life-cycle`, state path `C:\devhome\goal life cycle\outputs\STATE.json`.
+- Loaded external global registry through `load_global_registry(...)`. Result: 1 root, `goal-life-cycle`, state path `<repo-root>\outputs\STATE.json`.
 - Inspected evidence claims in both requested EVIDENCE files and the ignored `outputs/global/STATE.json` / `STATE.md` artifacts. The claimed 22-test verification and generated global output are supported.
 
 ## Residual Risks
